@@ -1,0 +1,51 @@
+# Default: allow everything
+User-agent: *
+Allow: /
+
+# --- OpenAI ---
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+
+# --- Anthropic ---
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-SearchBot
+Allow: /
+User-agent: Claude-User
+Allow: /
+
+# --- Google (Search + Gemini training/grounding control token) ---
+User-agent: Googlebot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+# --- Apple (Search + Apple foundation-model training control) ---
+User-agent: Applebot
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+# --- Perplexity (search discovery; not a training crawler per their docs) ---
+User-agent: PerplexityBot
+Allow: /
+
+# --- Common Crawl (widely used downstream in datasets) ---
+User-agent: CCBot
+Allow: /
+
+# --- xAI / Grok ---
+# Caveat: multiple reports say Grok often does not use a reliably identifiable user-agent,
+# so robots.txt may not be a reliable control mechanism for xAI either way.
+User-agent: GrokBot
+Allow: /
+User-agent: xAI-Grok
+Allow: /
+User-agent: Grok-DeepSearch
+Allow: /
+
+Sitemap: https://artuskg.github.io/sitemap.xml
