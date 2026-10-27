@@ -1,6 +1,7 @@
-# Bundler cache
+# Bundler cache. The classic GitHub Pages build ignores the Gemfile and its lock.
 .bundle
 vendor
+Gemfile.lock
 
 # Jekyll cache
 .jekyll-cache
@@ -20,10 +21,6 @@ package-lock.json
 !.vscode/settings.json
 !.vscode/extensions.json
 !.vscode/tasks.json
-
-# Misc
-_sass/vendors
-assets/js/dist
 
 # Hidden system files
 *~

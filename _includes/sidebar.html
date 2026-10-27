@@ -25,8 +25,9 @@
           <span>{{ site.data.locales[include.lang].tabs.home | upcase }}</span>
         </a>
       </li>
-      <!-- the real tabs -->
-      {% for tab in site.tabs %}
+      <!-- the real tabs. Classic GitHub Pages build: Jekyll 3 ignores the collection's sort_by. -->
+      {% assign tabs = site.tabs | sort: 'order' %}
+      {% for tab in tabs %}
         <li class="nav-item{% if tab.url == page.url %}{{ " active" }}{% endif %}">
           <a href="{{ tab.url | relative_url }}" class="nav-link">
             <i class="fa-fw {{ tab.icon }}"></i>

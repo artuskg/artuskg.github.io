@@ -36,9 +36,10 @@
 {% if trending_tags.size > 0 %}
   <section>
     <h2 class="panel-heading">{{- site.data.locales[include.lang].panel.trending_tags -}}</h2>
+    <!-- Classic GitHub Pages build: tags link to their section of the Tags page. -->
     <div class="d-flex flex-wrap mt-3 mb-1 me-3">
       {% for tag_name in trending_tags %}
-        {% assign url = tag_name | slugify | url_encode | prepend: '/tags/' | append: '/' %}
+        {% assign url = tag_name | slugify | url_encode | prepend: '/tags/#tag-' %}
         <a class="post-tag btn btn-outline-primary" href="{{ url | relative_url }}">{{ tag_name }}</a>
       {% endfor %}
     </div>

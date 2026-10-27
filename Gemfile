@@ -2,7 +2,8 @@
 
 source "https://rubygems.org"
 
-gem "jekyll-theme-chirpy", "~> 7.6"
+# The versions GitHub Pages' classic build uses: https://pages.github.com/versions/
+gem "github-pages", "~> 232", group: :jekyll_plugins
 
 gem "html-proofer", "~> 5.0", group: :test
 

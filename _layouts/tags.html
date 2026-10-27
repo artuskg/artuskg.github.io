@@ -3,6 +3,8 @@ layout: page
 # All the Tags of posts.
 ---
 
+{% include lang.html %}
+
 <div id="tags" class="d-flex flex-wrap mx-xl-2">
   {% assign tags = '' | split: '' %}
   {% for t in site.tags %}
@@ -13,10 +15,35 @@ layout: page
 
   {% for t in sorted_tags %}
     <div>
-      <a class="tag" href="{{ t | slugify | url_encode | prepend: '/tags/' | append: '/' | relative_url }}">
+      <a class="tag" href="#tag-{{ t | slugify | url_encode }}">
         {{ t -}}
         <span class="text-muted">{{ site.tags[t].size }}</span>
       </a>
     </div>
+  {% endfor %}
+</div>
+
+<!--
+  Classic GitHub Pages build: without jekyll-archives there are no per-tag pages,
+  so each tag's posts are listed here and tag links point to these sections.
+-->
+<div id="page-tag">
+  {% for t in sorted_tags %}
+    <section id="tag-{{ t | slugify }}" class="archive-group">
+      <h2 class="ps-lg-2">
+        <i class="fa fa-tag fa-fw text-muted"></i>
+        {{ t }}
+        <span class="lead text-muted ps-2">{{ site.tags[t].size }}</span>
+      </h2>
+      <ul class="content ps-0">
+        {% for post in site.tags[t] %}
+          <li class="d-flex justify-content-between px-md-3">
+            <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
+            <span class="dash flex-grow-1"></span>
+            {% include datetime.html date=post.date class='text-muted small text-nowrap' lang=lang %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
   {% endfor %}
 </div>

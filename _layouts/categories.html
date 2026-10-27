@@ -41,8 +41,8 @@ layout: page
         <span class="ms-2">
           <i class="far fa-folder{% if sub_categories_size > 0 %}-open{% endif %} fa-fw"></i>
 
-          {% capture _category_url %}/categories/{{ category_name | slugify | url_encode }}/{% endcapture %}
-          <a href="{{ _category_url | relative_url }}" class="mx-2">{{ category_name }}</a>
+          {% capture _category_url %}#category-{{ category_name | slugify | url_encode }}{% endcapture %}
+          <a href="{{ _category_url }}" class="mx-2">{{ category_name }}</a>
 
           <!-- content count -->
           {% assign top_posts_size = site.categories[category_name] | size %}
@@ -106,8 +106,8 @@ layout: page
               <li class="list-group-item">
                 <i class="far fa-folder fa-fw"></i>
 
-                {% capture _sub_ctg_url %}/categories/{{ sub_category | slugify | url_encode }}/{% endcapture %}
-                <a href="{{ _sub_ctg_url | relative_url }}" class="mx-2">{{ sub_category }}</a>
+                {% capture _sub_ctg_url %}#category-{{ sub_category | slugify | url_encode }}{% endcapture %}
+                <a href="{{ _sub_ctg_url }}" class="mx-2">{{ sub_category }}</a>
 
                 {% assign posts_size = site.categories[sub_category] | size %}
                 <span class="text-muted small font-weight-light">
@@ -136,3 +136,30 @@ layout: page
     {% assign group_index = group_index | plus: 1 %}
   {% endif %}
 {% endfor %}
+
+<!--
+  Classic GitHub Pages build: without jekyll-archives there are no per-category pages,
+  so each category's posts are listed here and category links point to these sections.
+-->
+<div id="page-category">
+  {% for category in sort_categories %}
+    {% assign category_name = category | first %}
+    {% assign posts_of_category = category | last %}
+    <section id="category-{{ category_name | slugify }}" class="archive-group">
+      <h2 class="ps-lg-2">
+        <i class="far fa-folder-open fa-fw text-muted"></i>
+        {{ category_name }}
+        <span class="lead text-muted ps-2">{{ posts_of_category | size }}</span>
+      </h2>
+      <ul class="content ps-0">
+        {% for post in posts_of_category %}
+          <li class="d-flex justify-content-between px-md-3">
+            <a href="{{ post.url | relative_url }}">{{ post.title }}</a>
+            <span class="dash flex-grow-1"></span>
+            {% include datetime.html date=post.date class='text-muted small text-nowrap' lang=lang %}
+          </li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% endfor %}
+</div>

@@ -1,0 +1,22 @@
+---
+---
+
+/* Site styles on top of the precompiled theme in jekyll-theme-chirpy.css. */
+
+/* Wrap long cell text in Markdown tables; the theme's nowrap makes wide tables scroll sideways. */
+.content .table-wrapper > table th,
+.content .table-wrapper > table td {
+  white-space: normal;
+  min-width: 4.5rem;
+  vertical-align: top;
+}
+
+/* Post lists per tag and category on the Tags and Categories pages. */
+.archive-group {
+  margin-top: 2.5rem;
+  scroll-margin-top: 4rem;
+
+  h2 > i {
+    font-size: 1.1rem;
+  }
+}

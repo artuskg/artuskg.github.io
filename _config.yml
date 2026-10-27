@@ -1,6 +1,16 @@
-# Site configuration for the Chirpy theme (https://github.com/cotes2020/jekyll-theme-chirpy)
+# Site configuration for the Chirpy theme (https://github.com/cotes2020/jekyll-theme-chirpy).
+# The theme is copied into this repository (tools/vendor-chirpy.sh), because GitHub Pages'
+# classic branch build accepts only its own themes and whitelisted plugins.
 
-theme: jekyll-theme-chirpy
+# No gem theme: otherwise the classic build adds its default theme, Primer.
+theme: null
+
+plugins:
+  - jekyll-include-cache
+  - jekyll-paginate
+  - jekyll-redirect-from
+  - jekyll-seo-tag
+  - jekyll-sitemap
 
 lang: en
 
@@ -130,12 +140,3 @@ exclude:
   - Gemfile
   - Gemfile.lock
   - vendor
-
-jekyll-archives:
-  enabled: [categories, tags]
-  layouts:
-    category: category
-    tag: tag
-  permalinks:
-    tag: /tags/:name/
-    category: /categories/:name/
