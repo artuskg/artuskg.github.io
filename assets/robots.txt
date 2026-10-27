@@ -1,3 +1,6 @@
+---
+permalink: /robots.txt
+---
 # Default: allow everything
 User-agent: *
 Allow: /
@@ -48,4 +51,4 @@ Allow: /
 User-agent: Grok-DeepSearch
 Allow: /
 
-Sitemap: https://artuskg.github.io/sitemap.xml
+Sitemap: https://artus.ai/sitemap.xml

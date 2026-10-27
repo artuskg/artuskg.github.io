@@ -1,3 +1,10 @@
+---
+title: 'How I Like to Read Papers (December 2025 Edition)'
+description: 'A paper-reading workflow with frontier models: one candid review prompt, parallel runs across models and a consolidation pass.'
+categories: [AI, Paper Reading]
+tags: [llm, workflow, paper-reading]
+---
+
 If I don't have much time, I am simply asking GPT-5.2 Pro to come up with an overview for me:
 
 > Please an in depth review of the below paper. No sugar coating, no mercy, no malice. I want the good, the bad, and (if any) the ugly. Where does this work improve our knowledge/the state of the art and how? Do you see potential uses/extensions/connections beyond this paper? Where would a well-read reviewer see missed connections—to older work the authors should have cited, to parallel developments in adjacent fields, or to techniques that could have been applied but weren’t? Anything else you like to point out?

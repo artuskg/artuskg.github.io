@@ -1,3 +1,10 @@
+---
+title: 'SleepFM: An AI-Assisted Review'
+description: 'Reading the SleepFM paper (Nature Medicine, 2026) with parallel reviews from several frontier models, then consolidating them.'
+categories: [AI, Paper Reviews]
+tags: [sleepfm, medical-ai, ai-review]
+---
+
 I am always intrigued by medical applications of AI, so let's have a look at this paper: [A multimodal sleep foundation model for disease prediction](https://www.nature.com/articles/s41591-025-04133-4.pdf). 
 
 As the first step, I ran my below standard prompt through GPT-5.2 Pro (standard thinking) twice (in parallel) and then went through the paper in while Pro was chugging along. 

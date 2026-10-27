@@ -1,5 +1,9 @@
-# AI in Scientific Peer Review
-## State of the Field as of January 2026
+---
+title: 'AI in Scientific Peer Review: State of the Field as of January 2026'
+description: 'Venue and publisher policies, empirical findings and the likely trajectory of AI in scientific peer review, as of January 2026.'
+categories: [AI, Peer Review]
+tags: [peer-review, policy, llm]
+---
 
 ### Executive Summary
 Scientific peer review in January 2026 exists in a state of productive tension. Survey data shows **53% of reviewers have used AI tools** in peer review [[13]](#ref-13)[[14]](#ref-14), with **87% of early-career researchers** using AI tools generally [[13]](#ref-13). Meanwhile, venue policies range from strict prohibition to venue-provided AI infrastructure. This document synthesizes verified evidence on the current policy landscape, empirical findings, and likely trajectory of AI integration into peer review.

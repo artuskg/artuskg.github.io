@@ -1,4 +1,9 @@
-# When an Agent Repeats Its Plan: A Qwen3.8-27B Case Study and a Reasoning-History Reset
+---
+title: 'When an Agent Repeats Its Plan: A Qwen3.8-27B Case Study and a Reasoning-History Reset'
+description: 'Qwen3.8-27B sometimes repeated one reasoning plan for dozens of tool turns. Deleting earlier reasoning after a repeat trigger passed all 44 selected replay continuations.'
+categories: [AI, Research Notes]
+tags: [agents, qwen, reasoning, vllm]
+---
 
 *27 October 2026. A single-model case study and a small fix, not a peer-reviewed paper.*
 

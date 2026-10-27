@@ -1,4 +1,9 @@
-# Consolidated Review: "A Multimodal Sleep Foundation Model for Disease Prediction" (SleepFM)
+---
+title: 'Consolidated Review: "A Multimodal Sleep Foundation Model for Disease Prediction" (SleepFM)'
+description: 'Seven AI reviews of SleepFM consolidated: consensus strengths, critical weaknesses and a recommended interpretation.'
+categories: [AI, Paper Reviews]
+tags: [sleepfm, medical-ai, ai-review]
+---
 
 **Paper:** Thapa et al., Nature Medicine, 2026  
 **DOI:** 10.1038/s41591-025-04133-4  

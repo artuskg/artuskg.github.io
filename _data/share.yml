@@ -1,0 +1,18 @@
+#  Sharing options at the bottom of each post.
+
+platforms:
+  - type: X
+    icon: "fa-brands fa-square-x-twitter"
+    link: "https://twitter.com/intent/tweet?text=TITLE&url=URL"
+
+  - type: LinkedIn
+    icon: "fab fa-linkedin"
+    link: "https://www.linkedin.com/feed/?shareActive=true&shareUrl=URL"
+
+  - type: Bluesky
+    icon: "fa-brands fa-bluesky"
+    link: "https://bsky.app/intent/compose?text=TITLE%20URL"
+
+  - type: Hacker News
+    icon: "fab fa-hacker-news"
+    link: "https://news.ycombinator.com/submitlink?u=URL&t=TITLE"

@@ -1,4 +1,9 @@
-# POSITION PAPER: The Case for Institutionalized AI in Peer Review
+---
+title: 'Position Paper: The Case for Institutionalized AI in Peer Review'
+description: 'A draft position paper: venues should engineer enforceable data boundaries and auditable AI toolchains, and enforce against harms rather than tool use.'
+categories: [AI, Peer Review]
+tags: [peer-review, policy, position-paper]
+---
 
 **Draft Version:** 0.3
 **Date:** January 7, 2026
