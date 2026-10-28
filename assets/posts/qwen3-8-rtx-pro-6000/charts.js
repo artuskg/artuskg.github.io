@@ -18,17 +18,17 @@ function table(id,head,rows,num){const t=document.getElementById(id);t.innerHTML
 
 // ---------- data ----------
 const LADDER=[
- {l:'Stock: FP8 checkpoint + MTP5',s:'speculative decoding; 3 runs, other host',v:1019.2,g:'17 of 18',t:'Runs 1,087.8 / 1,048.0 / 921.8 s, no loops. The reference for this ladder.'},
+ {l:'Stock: FP8 checkpoint + MTP5',s:'speculative decoding; 3 runs',v:1019.2,g:'17 of 18',t:'Runs 1,087.8 / 1,048.0 / 921.8 s, no loops. The reference for this ladder. A same-host rerun on 28 October took 1,013.5 s (4 of 6; both Q&A tasks failed) against 649.1 s for the sparse-prefill stack (−36%) and 1,903.3 s without speculation.'},
  {l:'+ 4-bit weights everywhere',s:'NVFP4 on Marlin kernels, FP8 KV cache; 3 runs',v:863.6,g:'15 of 18',t:'Runs 860.3 / 861.9 / 868.6 s, no loops.'},
  {l:'+ FP8-KV prefill attention kernel',s:'katt2b; 3 runs',v:762.6,g:'13 of 18, 2 loops',t:'Runs 783.4 / 800.8 / 703.7 s. Two runs looped on the same task.'},
  {l:'+ 4-bit prefill matmuls',s:'S2 W4A4; 3 runs',v:672.8,g:'17 of 18',t:'Runs 685.4 / 657.1 / 675.9 s; 654–672 s on later hosts. Time to first token 1.5–1.9× faster than the row above.'},
  {l:'+ INT4 draft head, decode-attention split',s:'stack F; 3 runs; wrote 9% more tokens',v:681.1,g:'18 of 18',t:'Runs 678.7–684.6 s against 665.4 s for the row above on the same host. 8.58 against 9.14 ms per output token: these runs wrote 9% more tokens, so the run took slightly longer.'},
- {l:'+ sparse long-prompt prefill',s:'KP1 v2; 2 runs · adoption unclear',v:645.2,g:'10 of 12',t:'Runs 645.1 / 645.4 s against 662.1 / 682.7 s for the 4-bit-prefill stack on the same host (−4.0%). First-turn prefill −41 s per run. GSM8K 1,244 of 1,319; needles 18 of 18; no loops.'},
+ {l:'+ sparse long-prompt prefill',s:'KP1 v2; 2 runs · adoption unclear',v:645.2,g:'10 of 12',t:'Runs 645.1 / 645.4 s against 662.1 / 682.7 s for the 4-bit-prefill stack on the same host (−4.0%). First-turn prefill −41 s per run. GSM8K 1,244 of 1,319; needles 18 of 18; no loops. A third run, beside stock on one host, took 649.1 s (5 of 6).'},
  {l:'+ tokenization cache',s:'KT1; projected, not run as a stack',v:622.8,g:'projection',p:1,t:'645.2 s minus the 22.4 s per run less time to first token seen with KT1. The compared runs made different numbers of requests, so the saving is an estimate.'}
 ];
 const DEC_CATS=[['BF16 release','+ MTP5 *'],['FP8 release','+ MTP5'],['+ pruned draft','head, FP8 KV'],['+ NVFP4','weights'],['+ Marlin','kernels'],['+ all layers','in NVFP4'],['+ 4-bit','prefill'],['+ INT4 draft,','decode attn.']];
-const DEC_NOTE=['BF16 release with MTP5, one prompt per length','Stock: FP8 release with MTP5 (1.0×)','Draft head limited to the 65,536 most frequent tokens; FP8 KV cache','NVIDIA NVFP4 checkpoint with the official FP8 MTP layer','Marlin W4A16 and W8A16 kernels','Attention and linear-attention projections re-quantized to NVFP4 (al)','4-bit prefill matmuls and FP8-KV prefill attention (three-bench mean)','INT4 draft head and decode-attention split, stack F (three-bench mean)'];
-const DEC=[{n:'64K',c:'--c64',d:[60.7,83.8,101.1,127.7,138.3,158.5,155.8,165.1]},{n:'128K',c:'--c128',d:[59.0,74.3,95.4,119.5,134.2,150.1,147.4,150.0]},{n:'256K',c:'--c256',d:[52.2,70.8,97.1,111.6,115.5,134.0,131.2,139.3]}];
+const DEC_NOTE=['BF16 release with MTP5, one prompt per length','Stock: FP8 release with MTP5 (1.0×), three draws on the same host as the last point','Draft head limited to the 65,536 most frequent tokens; FP8 KV cache','NVIDIA NVFP4 checkpoint with the official FP8 MTP layer','Marlin W4A16 and W8A16 kernels','Attention and linear-attention projections re-quantized to NVFP4 (al)','4-bit prefill matmuls and FP8-KV prefill attention (three-bench mean)','INT4 draft head and decode-attention split, stack F (three draws on the same host as stock)'];
+const DEC=[{n:'64K',c:'--c64',d:[60.7,78.3,101.1,127.7,138.3,158.5,155.8,164.9]},{n:'128K',c:'--c128',d:[59.0,73.4,95.4,119.5,134.2,150.1,147.4,150.0]},{n:'256K',c:'--c256',d:[52.2,67.2,97.1,111.6,115.5,134.0,131.2,139.3]}];
 const SEG=[{n:'First-turn prefill',v:179,c:'--s1'},{n:'Later-turn time to first token',v:48,c:'--s2'},{n:'Generation',v:409,c:'--s3'},{n:'Tool calls',v:16,c:'--s4'},{n:'Gaps (mostly harness tokenization)',v:28,c:'--s5'}];
 const LEVERS=[
  {c:'--s1',h:'First-turn prefill (26%)',b:'Sparse long-prompt prefill (KP1 v2): <b>−41 s per run, measured</b> on two hosts. A sparser version cut 20 s more but missed 1 of 54 retrieval probes. Faster prefill attention kernels: 8–40 s <span class="estag">estimate</span>'},
@@ -39,16 +39,17 @@ const LEVERS=[
 ];
 const LANES=[
  {n:'Qwen3.8 27B · 1 GPU',c:'--s1',stock:'FP8 release + MTP5',best:'stack F: all-NVFP4 + Marlin, 4-bit prefill, INT4 draft head, decode-attention split',
-  ns:null,st:[83.8,74.3,70.8],b:[165.1,150.0,139.3],
-  w:'W01 task time 1,019 s → 681 s (−33%), or 645 s (−37%) with sparse prefill; no-speculation control not yet measured'},
+  ns:[40.1,36.7,31.4],st:[78.3,73.4,67.2],b:[164.9,150.0,139.3],
+  w:'W01 task time, one run each: 1,014 s stock → 649 s best with sparse prefill (−36%); 1,903 s without speculation'},
  {n:'Qwen3.8-Flash-Next · 2 GPUs',c:'--s2',stock:'FP8 release + MTP3',best:'NVFP4 MoE on Marlin, fused kernels, INT4 draft head, native prefill and decode MoE kernels',
-  ns:null,st:[191.6,188.9,193.0],b:[332.4,336.7,348.1],
-  w:'W01 task time 445 s → 299 s (−33%), three runs each; no-speculation control not yet measured'},
+  ns:[118.2,117.4,117.4],st:[188.2,189.2,188.7],b:[331.6,338.8,353.3],
+  w:'W01 task time, mean of two runs each: 548 s stock → 324 s best (−41%); 703 s without speculation'},
  {n:'Qwen3.8-Flash-Next NVFP4 · 1 GPU',c:'--s3',stock:'NVIDIA NVFP4 release + MTP3',best:'NVFP4 linear attention on Marlin, INT4 output head, native decode MoE kernel',
-  ns:[90.6,91.0,91.2],st:[142.4,148.3,148.5],b:[255.6,265.0,264.0],
-  w:'No speculation: 0.61–0.64× stock. W01 task time 881 s without speculation (3 runs) → 400 s (1 run); stock MTP3 not yet run'}
+  ns:[91.5,91.6,91.4],st:[145.0,145.1,152.1],b:[258.1,267.1,267.5],
+  w:'W01 task time, one run each: 539 s stock → 344 s best (−36%); 731 s without speculation'}
 ];
-const CONC={x:[1,4,8,14,16],s:[{n:'64K prompts',c:'--c64',d:[94.5,148.0,162.8,162.5,160.3],pr:[161.0,56.3,29.6,15.0,13.6]},{n:'128K prompts',c:'--c256',d:[62.7,82.7,85.0,null,77.8],pr:[164.4,34.8,15.5,null,9.4]}]};
+const CONC={x:[1,4,8,14,16],s:[{n:'64K prompts, our stack',lab:'64K',c:'--c64',d:[94.5,148.0,162.8,162.5,160.3],pr:[161.0,56.3,29.6,15.0,13.6]},{n:'128K prompts, our stack',lab:'128K',c:'--c256',d:[62.7,82.7,85.0,null,77.8],pr:[164.4,34.8,15.5,null,9.4]},
+ {n:'64K prompts, stock',lab:'64K stock',c:'--c64',dash:1,d:[55.6,99.7,112.7,null,114.2],pr:[86.6,32.8,20.0,null,16.4]},{n:'128K prompts, stock',lab:'128K stock',c:'--c256',dash:1,d:[41.6,59.0,60.5,null,60.9],pr:[84.2,22.4,14.8,null,14.3]}]};
 // GPU-hours: consolidated census of every host (instance IDs matched across agent sessions and AWS CloudTrail)
 const GPUH=[
  {grp:'Campaign, 24–28 October: 363 GPU-hours on 59 hosts',rows:[
@@ -106,10 +107,10 @@ const GLOSS=[
 // ---------- tiles ----------
 function tiles(){
  const T=[
-  ['27B agent task time','645 s','per W01 run, from 1,019 s on the stock FP8 setup (−37%). Lower is better.'],
-  ['27B decode speed','2.0×','165 / 150 / 139 tok/s at 64K / 128K / 256K against stock FP8 + MTP5. Higher is better.'],
-  ['Flash Next, 2 GPUs','1.8×','332–348 tok/s decode; agent task time 445 → 299 s.'],
-  ['Flash Next, 1 GPU','1.8×','256–265 tok/s against stock NVFP4 + MTP3; 2.9× against no speculation.'],
+  ['27B agent task time','649 s','per W01 run, from 1,014 s on the stock FP8 setup on the same host (−36%). Lower is better.'],
+  ['27B decode speed','2.1×','165 / 150 / 139 tok/s at 64K / 128K / 256K, 2.04–2.11× stock FP8 + MTP5. Higher is better.'],
+  ['Flash Next, 2 GPUs','1.8×','332–353 tok/s decode, 1.76–1.87× stock; agent task time 548 → 324 s.'],
+  ['Flash Next, 1 GPU','1.8×','258–268 tok/s, 1.76–1.84× stock NVFP4 + MTP3 and 2.8–2.9× no speculation; agent task time 539 → 344 s.'],
   ['Quality held','18 of 18','needle probes for every adopted stack; GSM8K and W01 grades within their bars.'],
   ['GPU time used','363 GPU-h','on 59 cloud hosts over four days, plus 303 GPU-h of groundwork before.']
  ];
@@ -227,14 +228,14 @@ function conc(){
  el('line',{x1:L,x2:R,y1:B,y2:B,class:'g-base'},svg);
  [1,4,8,12,16].forEach(v=>tx(svg,X(v),B+16,v,'t-tick','middle'));tx(svg,(L+R)/2,B+31,'concurrent streams','t-tick','middle');
  CONC.s.forEach(s=>{const pts=CONC.x.map((v,i)=>[v,s.d[i],s.pr[i]]).filter(p=>p[1]!=null);
-  el('path',{d:pts.map((p,i)=>(i?'L':'M')+X(p[0])+','+Y(p[1])).join(''),fill:'none',stroke:css(s.c),'stroke-width':2,'stroke-linejoin':'round'},svg);
+  el('path',Object.assign({d:pts.map((p,i)=>(i?'L':'M')+X(p[0])+','+Y(p[1])).join(''),fill:'none',stroke:css(s.c),'stroke-width':2,'stroke-linejoin':'round'},s.dash?{'stroke-dasharray':'5 4'}:{}),svg);
   pts.forEach(p=>{const g=el('g',{'data-tip':`<b>${s.n}, ${p[0]} stream${p[0]>1?'s':''}</b><br>${f1(p[1])} tok/s in total<br>${f1(p[2])} tok/s per stream while generating`},svg);el('circle',{cx:X(p[0]),cy:Y(p[1]),r:10,fill:'transparent'},g);el('circle',{cx:X(p[0]),cy:Y(p[1]),r:4,fill:css(s.c),stroke:css('--surface'),'stroke-width':2},g);});
-  const lp=pts[pts.length-1];const t=tx(svg,X(lp[0])+12,Y(lp[1])+4,'','t-val');const a=el('tspan',{class:'t-b'},t);a.textContent=s.n.split(' ')[0];const b=el('tspan',{class:'t-mut',dx:5},t);b.textContent=f1(lp[1]);
+  const lp=pts[pts.length-1];const t=tx(svg,X(lp[0])+12,Y(lp[1])+4,'','t-val');const a=el('tspan',{class:'t-b'},t);a.textContent=s.lab;const b=el('tspan',{class:'t-mut',dx:5},t);b.textContent=f1(lp[1]);
  });
  const s64=CONC.s[0],s128=CONC.s[1];
  tx(svg,X(8),Y(s64.d[2])-12,`${(s64.d[2]/s64.d[0]).toFixed(1)}× one stream`,'t-sub','middle');
- tx(svg,X(16)-4,Y(77.8)+22,'KV cache full','t-sub','end');
- document.getElementById('lg-conc').innerHTML=CONC.s.map(s=>`<span><span class="ln" style="border-color:${css(s.c)}"></span>${s.n}</span>`).join('');
+ tx(svg,X(16)-4,Y(77.8)-12,'KV cache full','t-sub','end');
+ document.getElementById('lg-conc').innerHTML=CONC.s.map(s=>`<span><span class="ln" style="border-color:${css(s.c)}${s.dash?';border-top-style:dashed':''}"></span>${s.n}</span>`).join('');
  const rows=[];CONC.s.forEach(s=>CONC.x.forEach((v,i)=>{if(s.d[i]!=null)rows.push([s.n,v,f1(s.d[i]),f1(s.pr[i])]);}));
  table('t-conc',['Prompts','Streams','Total tok/s','Per-stream tok/s while generating'],rows,[0,1,1,1]);
 }
