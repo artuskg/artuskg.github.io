@@ -52,7 +52,7 @@ const CONC={x:[1,4,8,14,16],s:[{n:'64K prompts, our stack',lab:'64K',c:'--c64',d
  {n:'64K prompts, stock',lab:'64K stock',c:'--c64',dash:1,d:[55.6,99.7,112.7,null,114.2],pr:[86.6,32.8,20.0,null,16.4]},{n:'128K prompts, stock',lab:'128K stock',c:'--c256',dash:1,d:[41.6,59.0,60.5,null,60.9],pr:[84.2,22.4,14.8,null,14.3]}]};
 // GPU-hours: consolidated census of every host (instance IDs matched across agent sessions and AWS CloudTrail)
 const GPUH=[
- {grp:'Campaign, 24–28 October: 363 GPU-hours on 59 hosts',rows:[
+ {grp:'Campaign, 24–28 October: 374 GPU-hours on 62 hosts',rows:[
   {l:'Why the models loop',s:'causes and fixes for repetition loops',h:{p6:100.89}},
   {l:'Flash Next on 2 GPUs',s:'speed stack and quality gates',h:{p6:61.18}},
   {l:'New Blackwell kernels',s:'MoE decode, prefill, attention, 4-bit KV cache',h:{p6:37.35,p45:3.86}},
@@ -63,6 +63,7 @@ const GPUH=[
   {l:'27B new levers',s:'draft head, attention, sparse prefill, tokenization',h:{p6:13.95}},
   {l:'Flash Next on 1 GPU',s:'speed stack and quality gates',h:{p6:13.64}},
   {l:'27B combined-stack comparisons',s:'paired runs before adopting a stack',h:{p6:12.46}},
+  {l:'Same-host reruns for this page',s:'no speculation, stock and best on one host per setup',h:{p6:11.37}},
   {l:'Reference controls, second team',s:'independent baseline runs (On-Demand)',h:{p6:8.94}},
   {l:'Fine-tuned 27B comparison',s:'Tess-4.5 against the base checkpoint',h:{p6:3.63}},
   {l:'Fused-kernel prototypes',s:'larger fused decode kernels',h:{p6:3.44}}]},
@@ -112,7 +113,7 @@ function tiles(){
   ['Flash Next, 2 GPUs','1.8×','332–353 tok/s decode, 1.76–1.87× stock; agent task time 548 → 324 s.'],
   ['Flash Next, 1 GPU','1.8×','258–268 tok/s, 1.76–1.84× stock NVFP4 + MTP3 and 2.8–2.9× no speculation; agent task time 539 → 344 s.'],
   ['Quality held','18 of 18','needle probes for every adopted stack; GSM8K and W01 grades within their bars.'],
-  ['GPU time used','363 GPU-h','on 59 cloud hosts over four days, plus 303 GPU-h of groundwork before.']
+  ['GPU time used','374 GPU-h','on 62 cloud hosts over five days, plus 303 GPU-h of groundwork before.']
  ];
  document.getElementById('tiles').innerHTML=T.map(t=>`<div class="tile"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="d">${t[2]}</div></div>`).join('');
 }
@@ -258,7 +259,7 @@ function gpuh(){
    y+=RH;});
  });
  document.getElementById('lg-gpuh').innerHTML=GPUH_KEYS.map(k=>`<span><span class="sw" style="background:${css(k.c)}"></span>${k.n}</span>`).join('');
- document.getElementById('n-gpuh').textContent='Totals: 362.7 GPU-h for the campaign (342.4 on RTX PRO 6000, 20.2 on RTX PRO 4500) and 302.9 GPU-h of earlier groundwork; 665.5 GPU-h in all. Host sets from agent records were matched to the cloud provider\'s launch log; three early hosts include stopped time, so their figures are upper bounds. Each host counts once, under its main purpose.';
+ document.getElementById('n-gpuh').textContent='Totals: 374.0 GPU-h for the campaign (353.8 on RTX PRO 6000, 20.2 on RTX PRO 4500) and 302.9 GPU-h of earlier groundwork; 676.9 GPU-h in all. Host sets from agent records were matched to the cloud provider\'s launch log; three early hosts include stopped time, so their figures are upper bounds. Each host counts once, under its main purpose.';
  table('t-gpuh',['Period','Work item','Detail',...GPUH_KEYS.map(k=>k.n),'Total'],all,[0,0,0,1,1,1,1,1]);
 }
 
