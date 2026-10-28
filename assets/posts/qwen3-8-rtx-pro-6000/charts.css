@@ -1,0 +1,68 @@
+/* Charts for the post "Qwen3.8 on RTX PRO 6000 Blackwell". Light and dark follow the site theme (data-bs-theme), else the system setting. */
+.brrr,.brrr-tip{--page:#f9f9f7;--surface:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--axis:#c3c2b7;--ring:rgba(11,11,11,.10);
+ --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--on4:#0b0b0b;
+ --c64:#6da7ec;--c128:#2a78d6;--c256:#184f95;--good:#006300}
+:root[data-bs-theme="dark"] .brrr,:root[data-bs-theme="dark"] .brrr-tip{--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+ --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--on4:#0b0b0b;
+ --c64:#1c5cab;--c128:#3987e5;--c256:#86b6ef;--good:#0ca30c}
+@media (prefers-color-scheme:dark){:root:not([data-bs-theme]) .brrr,:root:not([data-bs-theme]) .brrr-tip{--page:#0d0d0d;--surface:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--axis:#383835;--ring:rgba(255,255,255,.10);
+ --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--on4:#0b0b0b;
+ --c64:#1c5cab;--c128:#3987e5;--c256:#86b6ef;--good:#0ca30c}}
+.brrr{color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased;margin:1.5rem 0}
+.brrr *{box-sizing:border-box}
+.brrr .card{background:var(--surface);border-radius:12px;box-shadow:0 0 0 1px var(--ring);padding:22px 20px 16px;margin:22px 0}
+.brrr .kicker{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}
+.brrr .card h2{font-size:21px;line-height:1.25;margin:0 0 6px;font-weight:650}
+.brrr .sub{font-size:14px;color:var(--ink2);margin:0 0 10px;max-width:740px}
+.brrr .dirpill{display:inline-block;width:auto;font-size:12px;font-weight:600;color:var(--ink2);border:1px solid var(--ring);border-radius:999px;padding:1px 9px;margin:0 0 8px}
+.brrr svg.chart{display:block;width:100%;height:auto;overflow:visible}
+.brrr svg text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.brrr .t-lab{fill:var(--ink);font-size:13px}
+.brrr .t-lab b,.brrr .t-b{font-weight:600}
+.brrr .t-sub{fill:var(--ink2);font-size:11.5px}
+.brrr .t-tick{fill:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.brrr .t-val{fill:var(--ink);font-size:12.5px;font-variant-numeric:tabular-nums}
+.brrr .t-mut{fill:var(--ink2);font-size:12px;font-variant-numeric:tabular-nums}
+.brrr .g-grid{stroke:var(--grid);stroke-width:1}
+.brrr .g-base{stroke:var(--axis);stroke-width:1}
+.brrr .legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--ink2);margin:4px 0 8px}
+.brrr .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.brrr .legend .ln{display:inline-block;width:16px;height:0;border-top:2px solid;margin-right:6px;vertical-align:3px}
+.brrr .legend .tk{display:inline-block;width:2px;height:12px;background:var(--ink);margin:0 7px 0 4px;vertical-align:-2px}
+.brrr .note{font-size:12.5px;color:var(--ink2);margin:10px 0 0;max-width:740px}
+.brrr .foot{display:none;font-size:12px;color:var(--muted);margin-top:14px;padding-top:10px;border-top:1px solid var(--grid)}
+.brrr details.tbl{margin-top:10px;font-size:13px}
+.brrr details.tbl summary{cursor:pointer;color:var(--ink2)}
+.brrr table{border-collapse:collapse;width:100%;margin-top:8px;font-size:12.5px}
+.brrr th,.brrr td{text-align:left;padding:5px 6px;border-bottom:1px solid var(--grid);vertical-align:top}
+.brrr th{color:var(--ink2);font-weight:600}
+.brrr td.n,.brrr th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.brrr .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:6px}
+.brrr .tile{border-radius:10px;box-shadow:0 0 0 1px var(--ring);padding:12px 14px}
+.brrr .tile .k{font-size:13px;color:var(--ink2)}
+.brrr .tile .v{font-size:30px;font-weight:650;line-height:1.15;margin:3px 0 2px}
+.brrr .tile .d{font-size:12.5px;color:var(--ink2);line-height:1.4}
+.brrr .levers{margin:12px 0 0;padding:0;list-style:none;font-size:13.5px}
+.brrr .levers li{margin:0 0 7px;padding-left:14px;position:relative}
+.brrr .levers li::before{content:"";position:absolute;left:0;top:7px;width:7px;height:7px;border-radius:2px;background:var(--c)}
+.brrr .levers b{font-weight:600}
+.brrr .estag{line-height:1.4;display:inline-block;font-size:11px;font-weight:600;color:var(--ink2);border:1px solid var(--ring);border-radius:4px;padding:0 5px;margin-left:4px;white-space:nowrap}
+.brrr dl.gloss{display:grid;grid-template-columns:150px 1fr;gap:6px 14px;font-size:13.5px;margin:6px 0 0}
+.brrr dl.gloss dt{font-weight:600}
+.brrr dl.gloss dd{margin:0;color:var(--ink2)}
+.brrr ol.next{margin:6px 0 0;padding-left:20px;font-size:14px}
+.brrr ol.next li{margin:0 0 9px}
+.brrr ol.next .est{color:var(--muted);font-size:12.5px}
+.brrr .method{font-size:13.5px;color:var(--ink2)}
+.brrr .method p{margin:0 0 8px}
+.brrr-tip{position:fixed;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;pointer-events:none;background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--ring),0 4px 14px rgba(0,0,0,.14);border-radius:8px;padding:7px 9px;font-size:12.5px;line-height:1.45;display:none;max-width:300px;z-index:1090}
+.brrr-tip .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+@media (max-width:640px){.brrr .tiles{grid-template-columns:1fr 1fr}.brrr dl.gloss{grid-template-columns:1fr}.brrr dl.gloss dd{margin-bottom:6px}}
+@media (forced-colors:active){.brrr .card{border:1px solid CanvasText}}
+.brrr .card h2{border:0;padding:0;scroll-margin-top:4rem}
+.brrr .card h2::before,.brrr .card h2 .anchor{display:none}
+.brrr .table-wrapper{margin:0;overflow-x:auto}
+.brrr table{display:table}
+.brrr .foot{display:none}
+/* The theme (Bootstrap) also styles .card as a bordered flex column; keep these cards plain blocks. */
+.brrr .card{display:block;border:0;color:inherit;min-width:0}
