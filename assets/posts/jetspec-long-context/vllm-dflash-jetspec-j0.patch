@@ -1,0 +1,266 @@
+JetSpec++ first-pass (J0) context-token initialization for vLLM's DFlash speculator, plus draft-step dump
+instrumentation. Used for "A Short-Context Drafter on Long-Context Reasoning: Testing JetSpec++ on Qwen3.8-27B",
+https://artus.ai/2026/10/31/jetspec-long-context.html (31 October 2026).
+
+Base: vLLM c50aca14416ef29f6ed0ed256302f30646726dcd, one file:
+  vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
+Patched file sha256: 0f0a4d209568e41ee28389b33bd30803babee67cea28730e3475680cc1343974 (the file the test ran).
+Apply in a vLLM checkout at that commit with `git apply vllm-dflash-jetspec-j0.patch`. The test mounted the patched
+file over the same path in a vLLM nightly image built from that commit.
+
+Both switches are environment variables and default to off, which leaves vLLM's behavior unchanged.
+
+VLLM_DFLASH_CTX_NOISE=1
+  Fills the draft block's non-anchor query slots with tokens from the committed context instead of vLLM's mask
+  token, following the first pass of JetSpec++'s released code (hao-ai-lab/JetSpec @673267e4,
+  jetspec/methods/jetspec_plus_plus/context.py, build_random_context_block_token_ids, mode "kth"). Slot 0 stays the
+  anchor. Slot k takes the committed token at index r mod L: r is a fixed pseudo-random number per request slot and
+  k, and L is the number of committed tokens including the anchor. The draws use Triton's generator, so they are
+  not bit-identical to the released code's CPU generator. A [max_num_seqs, max_model_len] int32 history holds the
+  committed tokens. It is written from each step's accepted tokens and the anchor before the draw, so no rejected or
+  future token is read.
+
+VLLM_DFLASH_DUMP=DIR with VLLM_DFLASH_DUMP_STEPS=N
+  For the first N single-request steps, saves the target positions and input ids, the drafter's input hidden states
+  (the concatenated target-layer taps), the rejected and sampled counts, the drafter's query ids and positions and
+  the draft tokens to DIR/stepNNNN.pt, for comparison with a reference implementation. It copies to the CPU and so
+  synchronizes: use it for checks, not timing. It also dumps the context-only steps of non-final prefill chunks. With
+  CUDA graphs on, vLLM's startup warm-up request drafts too and gets dumped; skip those steps when comparing.
+
+The patch also logs the draft KV cache dtype of every drafter attention layer at load.
+
+Drafter: JetSpec/jetspec-plus-plus-qwen3p8-27b @3147a351, weights unchanged. vLLM reads the causal draft head from
+dflash_config.causal, while the released config.json spells it causal_head, so add "causal": true to dflash_config in
+a local copy of config.json. That is the only config change.
+
+Serving flags for the drafter (15 draft tokens; the test also ran 7):
+  --speculative-config '{"method":"dflash","model":"<drafter dir>","num_speculative_tokens":15,"kv_cache_dtype":"auto"}'
+With "kv_cache_dtype":"auto" the draft KV cache stays BF16 even when the target uses an FP8 KV cache.
+
+Research code, run only for this test: one RTX PRO 6000 Blackwell, max-num-seqs 4, single-stream benchmarks. Other
+batch sizes and GPUs are untested. License: Apache-2.0, as vLLM.
+
+--- a/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
++++ b/vllm/v1/worker/gpu/spec_decode/dflash/speculator.py
+@@ -1,6 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+ import copy
++import os
+ from typing import Any
+ 
+ import torch
+@@ -130,6 +131,21 @@
+         self.query_cudagraph_manager: DFlashCudaGraphManager | None = None
+         self.draft_kv_cache_group_id: int = -1
+ 
++        # JetSpec J0 committed-context initialisation (patch; VLLM_DFLASH_CTX_NOISE=1).
++        self.ctx_noise = os.environ.get("VLLM_DFLASH_CTX_NOISE", "0") == "1"
++        self.ctx_pool = torch.zeros(
++            (self.max_num_reqs, self.max_model_len) if self.ctx_noise else (1, 1),
++            dtype=torch.int32,
++            device=device,
++        )
++        self.dump_dir = os.environ.get("VLLM_DFLASH_DUMP") or None
++        self.dump_max = int(os.environ.get("VLLM_DFLASH_DUMP_STEPS", "0"))
++        self.dump_count = 0
++        logger.info(
++            "DFLASH_CTX_NOISE=%d pool=%s dump=%s/%d",
++            int(self.ctx_noise), tuple(self.ctx_pool.shape), self.dump_dir, self.dump_max,
++        )
++
+     @property
+     def attn_vllm_config(self) -> VllmConfig:
+         # The draft's attention differs from the target's in causality.
+@@ -241,7 +257,12 @@
+         target_model: nn.Module,
+         target_attn_layer_names: set[str],
+     ) -> nn.Module:
+-        return load_dflash_model(target_model, self.vllm_config)
++        model = load_dflash_model(target_model, self.vllm_config)
++        dtypes = sorted({str(getattr(m, "kv_cache_dtype", None)) for _, m in model.named_modules()
++                         if hasattr(m, "kv_cache_dtype")})
++        logger.info("DFLASH_DRAFT_KV_DTYPES=%s spec_kv_cache_dtype=%s", dtypes,
++                    self.vllm_config.speculative_config.kv_cache_dtype)
++        return model
+ 
+     def set_attn(
+         self,
+@@ -464,6 +485,17 @@
+         if dummy_run and dp_sync_state is not None:
+             num_reqs = min(num_reqs, dp_sync_state.num_reqs)
+         num_target_tokens = input_batch.num_tokens
++        dump = None
++        if (self.dump_dir and not dummy_run and not is_profile and num_reqs == 1
++                and self.dump_count < self.dump_max and aux_hidden_states):
++            dump = {
++                "positions": input_batch.positions[:num_target_tokens].cpu(),
++                "input_ids": input_batch.input_ids[:num_target_tokens].cpu(),
++                "aux": torch.cat([h[:num_target_tokens] for h in aux_hidden_states], dim=-1).cpu(),
++                "num_rejected": num_rejected[:num_reqs].cpu(),
++                "num_sampled": num_sampled[:num_reqs].cpu(),
++                "ctx_noise": self.ctx_noise,
++            }
+         num_query_tokens = num_reqs * self.num_query_per_req
+         max_seq_len = input_batch.seq_lens_cpu_upper_bound[:num_reqs].max().item()
+         self.draft_max_seq_len = min(
+@@ -541,6 +573,7 @@
+                 self.max_model_len,
+                 self.sample_from_anchor,
+                 num_reqs,
++                ctx_pool=self.ctx_pool if self.ctx_noise else None,
+             )
+ 
+         if num_speculative_tokens == 0:
+@@ -550,6 +583,10 @@
+                 num_target_tokens, last_hidden_states, aux_hidden_states
+             )
+             self._precompute_context_kv(0, num_target_tokens, dummy_run)
++            if dump is not None:  # context-only step: taps, no query pass
++                os.makedirs(self.dump_dir, exist_ok=True)
++                torch.save(dump, os.path.join(self.dump_dir, f"step{self.dump_count:04d}.pt"))
++                self.dump_count += 1
+             return self.draft_tokens[:num_reqs]
+ 
+         batch_sync, num_batch_tokens = (
+@@ -631,6 +668,14 @@
+                 cudagraph_runtime_mode=batch_desc.cg_mode,
+             )
+ 
++        if dump is not None:
++            nq = num_reqs * self.num_query_per_req
++            dump["query_ids"] = self.input_buffers.input_ids[:nq].cpu()
++            dump["query_positions"] = self.input_buffers.positions[:nq].cpu()
++            dump["draft_tokens"] = self.draft_tokens[:num_reqs].cpu()
++            os.makedirs(self.dump_dir, exist_ok=True)
++            torch.save(dump, os.path.join(self.dump_dir, f"step{self.dump_count:04d}.pt"))
++            self.dump_count += 1
+         return self.draft_tokens[:num_reqs]
+ 
+ 
+@@ -651,6 +696,8 @@
+     out_temperature_ptr,
+     out_seeds_ptr,
+     # Inputs from target batch
++    ctx_pool_ptr,
++    ctx_pool_stride,
+     target_positions_ptr,
+     target_query_start_loc_ptr,
+     idx_mapping_ptr,
+@@ -674,6 +721,7 @@
+     max_model_len,
+     cp_rank,
+     SAMPLE_FROM_ANCHOR: tl.constexpr,
++    CTX_NOISE: tl.constexpr,
+     PAD_SLOT_ID: tl.constexpr,
+     CP_SIZE: tl.constexpr,
+     CP_INTERLEAVE: tl.constexpr,
+@@ -743,6 +791,17 @@
+     query_idx = query_base + query_off
+     is_bonus = is_query & (query_off == 0)
+     input_id = tl.where(is_bonus, bonus_token, parallel_drafting_token_id)
++    if CTX_NOISE:
++        committed = last_valid_pos + 2
++        rnd = tl.randint(20261031, (req_state_idx * 64 + query_off).to(tl.uint32))
++        ridx = (rnd % committed.to(tl.uint32)).to(tl.int64)
++        use_noise = is_query & (query_off > 0)
++        noise_tok = tl.load(
++            ctx_pool_ptr + req_state_idx.to(tl.int64) * ctx_pool_stride + ridx,
++            mask=use_noise,
++            other=0,
++        )
++        input_id = tl.where(use_noise, noise_tok, input_id)
+ 
+     q_block_num = query_pos // (block_size * CP_SIZE)
+     q_block_num = tl.minimum(q_block_num, block_table_stride - 1)
+@@ -839,6 +898,43 @@
+                 tl.store(out_query_slot_mapping_ptr + block, PAD_SLOT_ID, mask=mask)
+ 
+ 
++@triton.jit
++def _ctx_pool_write_kernel(
++    target_input_ids_ptr,
++    target_positions_ptr,
++    target_query_start_loc_ptr,
++    idx_mapping_ptr,
++    last_sampled_ptr,
++    next_prefill_tokens_ptr,
++    num_sampled_ptr,
++    num_rejected_ptr,
++    ctx_pool_ptr,
++    ctx_pool_stride,
++    max_model_len,
++    BLOCK_SIZE: tl.constexpr,
++):
++    req_idx = tl.program_id(0)
++    block_idx = tl.program_id(1)
++    req_state_idx = tl.load(idx_mapping_ptr + req_idx)
++    base = ctx_pool_ptr + req_state_idx.to(tl.int64) * ctx_pool_stride
++    ctx_start = tl.load(target_query_start_loc_ptr + req_idx)
++    ctx_end = tl.load(target_query_start_loc_ptr + req_idx + 1)
++    valid_ctx_end = ctx_end - tl.load(num_rejected_ptr + req_idx)
++    num_valid_ctx = valid_ctx_end - ctx_start
++    j = block_idx * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++    m = j < num_valid_ctx
++    pos = tl.load(target_positions_ptr + ctx_start + j, mask=m, other=0)
++    tok = tl.load(target_input_ids_ptr + ctx_start + j, mask=m, other=0)
++    tl.store(base + pos, tok, mask=m & (pos < max_model_len))
++    if block_idx == 0:
++        if tl.load(num_sampled_ptr + req_idx) > 0:
++            bonus = tl.load(last_sampled_ptr + req_state_idx).to(tl.int32)
++        else:
++            bonus = tl.load(next_prefill_tokens_ptr + req_state_idx).to(tl.int32)
++        bpos = tl.load(target_positions_ptr + valid_ctx_end - 1) + 1
++        tl.store(base + bpos, bonus, mask=bpos < max_model_len)
++
++
+ def prepare_dflash_inputs(
+     input_buffers: InputBuffers,
+     query_slot_mapping: torch.Tensor,
+@@ -876,6 +972,7 @@
+     max_model_len: int,
+     sample_from_anchor: bool = False,
+     num_reqs_override: int | None = None,
++    ctx_pool: torch.Tensor | None = None,
+ ) -> None:
+     num_reqs = input_batch.num_reqs if num_reqs_override is None else num_reqs_override
+     assert num_reqs <= input_batch.num_reqs
+@@ -886,6 +983,21 @@
+     max_tokens_per_req = max_target_query_len + num_query_per_req
+     BLOCK_SIZE = min(256, triton.next_power_of_2(max(1, max_tokens_per_req)))
+     num_blocks = triton.cdiv(max_tokens_per_req, BLOCK_SIZE)
++    if ctx_pool is not None:
++        _ctx_pool_write_kernel[(num_reqs, num_blocks)](
++            input_batch.input_ids,
++            input_batch.positions,
++            input_batch.query_start_loc,
++            input_batch.idx_mapping,
++            last_sampled,
++            next_prefill_tokens,
++            num_sampled,
++            num_rejected,
++            ctx_pool,
++            ctx_pool.stride(0),
++            max_model_len,
++            BLOCK_SIZE=BLOCK_SIZE,
++        )
+     _prepare_dflash_inputs_kernel[(num_reqs, num_blocks)](
+         input_buffers.input_ids,
+         input_buffers.positions,
+@@ -900,6 +1012,8 @@
+         sample_idx_mapping,
+         temperature,
+         seeds,
++        ctx_pool if ctx_pool is not None else input_batch.input_ids,
++        ctx_pool.stride(0) if ctx_pool is not None else 0,
+         input_batch.positions,
+         input_batch.query_start_loc,
+         input_batch.idx_mapping,
+@@ -920,6 +1034,7 @@
+         max_model_len,
+         cp_rank,
+         SAMPLE_FROM_ANCHOR=sample_from_anchor,
++        CTX_NOISE=ctx_pool is not None,
+         PAD_SLOT_ID=PAD_SLOT_ID,
+         CP_SIZE=cp_size,
+         CP_INTERLEAVE=cp_interleave,

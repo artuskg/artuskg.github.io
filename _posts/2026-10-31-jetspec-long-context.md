@@ -215,7 +215,7 @@ For long-context reasoning serving, the practical lesson is to measure a drafter
 
 ## Availability
 
-The JetSpec++ [code](https://github.com/hao-ai-lab/JetSpec), [paper](https://arxiv.org/abs/2610.19792) and [checkpoints](https://huggingface.co/JetSpec) are public. So is the target checkpoint we used, [Percivio/Qwen3.8-27B-NVFP4-all](https://huggingface.co/Percivio/Qwen3.8-27B-NVFP4-all). Our vLLM patch for this test (the context-token initialization and the dump instrumentation), the benchmark prompts and the run records are not released with this note.
+The JetSpec++ [code](https://github.com/hao-ai-lab/JetSpec), [paper](https://arxiv.org/abs/2610.19792) and [checkpoints](https://huggingface.co/JetSpec) are public. So is the target checkpoint we used, [Percivio/Qwen3.8-27B-NVFP4-all](https://huggingface.co/Percivio/Qwen3.8-27B-NVFP4-all). Our vLLM patch for this test is [one patch file](/assets/posts/jetspec-long-context/vllm-dflash-jetspec-j0.patch) against vLLM `c50aca1`, Apache-2.0 like vLLM. It holds the context-token initialization (`VLLM_DFLASH_CTX_NOISE=1`) and the dump instrumentation (`VLLM_DFLASH_DUMP`), both off by default. Its header gives the one config change the drafter needs and our serving flags. The benchmark prompts and run records are not released with this note.
 
 ## AI assistance
 
