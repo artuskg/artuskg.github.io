@@ -1,6 +1,6 @@
 ---
 title: 'The Frankenstein, Part 1: DeepSeek-V4.1-Flash on Two RTX PRO 6000s'
-description: 'We are assembling a server for DeepSeek-V4.1-Flash on one workstation with two RTX PRO 6000s from the best parts of other engines. Part 1: the body (vLLM with diffbot''s EXL3 3-bit pack), one CPU-expert schedule served at 2.07% less time per verify step, and a prompt region cache adopted at 5.57 s less server time per agent-task draw.'
+description: 'We are assembling a server for DeepSeek-V4.1-Flash on one workstation with two RTX PRO 6000s from the best parts of other engines. Part 1: the body (vLLM with diffbot''s EXL3 3-bit pack), one CPU-expert schedule served at 2.07% less time per verify step, and a prompt region cache that passed its test at 5.57 s less server time per agent-task draw and is next in line.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, cpu-offload, tokenization]
 ---
@@ -9,7 +9,7 @@ tags: [deepseek, vllm, gpu, cpu-offload, tokenization]
 
 We're building a server for DeepSeek-V4.1-Flash on a workstation with two RTX PRO 6000s, Frankenstein-style: other engines' best parts first, then our own.
 
-Part 1: the body, one part served (verify steps 2.07% shorter) and one adopted (5.57 s less server time per task draw).
+Part 1: the body, one part served (verify steps 2.07% shorter) and one up next (5.57 s less server time per task draw).
 
 The target is [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) on one workstation: two RTX PRO 6000 Blackwell Workstation Edition GPUs, a 64-core Threadripper PRO 9985WX and 512 GB of RAM. The workload is long-context agentic coding, one request at a time, and the goal is to finish agent tasks sooner at the same graded quality.
 
@@ -19,7 +19,7 @@ The plan has two stages. First we combine the best parts of several existing eng
 
 - **The body:** vLLM with [diffbot's EXL3 3-bit pack](https://huggingface.co/diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000). On 31 October it replaced our llama.cpp setup under a rule written before the run. Its total time for 18 agent-task episodes was 28.2% lower in that run, and it passed 13 of 18 against 15, within the rule's limit.
 - **New part, served:** an optional CPU-expert schedule from diffbot's runtime. Each verify step took 2.07% less time, lower in 5 of 5 randomized blocks (p = 1/32). That is step time, not task time. Its quality test is running.
-- **New part, adopted:** a cache of token IDs per prompt region. It cut the server's time outside queueing and prefill from 6.64–6.93 s to 1.16–1.23 s per task draw, 5.57 s per draw, in 8 randomized engine starts (p = 1/70), with identical prompt token IDs. It is not task time, and it is not served yet.
+- **New part, up next:** a cache of token IDs per prompt region. It cut the server's time outside queueing and prefill from 6.64–6.93 s to 1.16–1.23 s per task draw, 5.57 s per draw, in 8 randomized engine starts (p = 1/70), with identical prompt token IDs. It passed its registered test, but it is not task time and it is not adopted or served yet.
 
 ## The body: vLLM with diffbot's EXL3 3-bit pack
 
@@ -108,7 +108,7 @@ What this does and does not show:
 - **Quality is not settled.** The schedule changes the order in which floating-point sums are added, so outputs can change. A fidelity check could not settle it: two starts of the unchanged engine already differed by more than the check's tolerance.
 - **Served on a policy call.** Our campaign manager put schedule 2 into serving on 1 November, on the step-time result, with a revert rule: a failure that only schedule 2 shows, a lower pass rate or a quality regression sends it back. A randomized W01 comparison of the two schedules, 10 blocks, is running now. Its result goes in the next note.
 
-## New part, adopted: a prompt region cache
+## New part, up next: a prompt region cache
 
 An agent request carries the whole conversation so far. In W01 the prompts are 105K–175K tokens long, and one text region between the chat template's control tokens makes up 98–99% of each one. That region repeats unchanged from request to request, and the server tokenized it again every time: about 0.1–0.2 s per request on the CPU.
 
@@ -173,7 +173,7 @@ Every start without the cache was slower than every start with it. The differenc
 
 What this does and does not show:
 - **Not task time.** The replay is one request at a time with one output token. How much of the 5.57 s a live agent task saves is measured next, with the cache served.
-- **Not served yet.** It goes into serving after the schedule comparison ends.
+- **Not adopted or served yet.** It is adopted only after the schedule comparison ends, and then served.
 - **What remains:** with the cache on, the server still spent 0.75–2.01 s per draw outside queueing and prefill (the arm's mean per draw).
 
 ## Next
