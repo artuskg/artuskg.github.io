@@ -31,7 +31,7 @@ diffbot's recipe serves DeepSeek-V4.1-Flash-1017 on two RTX PRO 6000s with vLLM 
 We compared it with the setup we were serving: llama.cpp with Unsloth's UD-IQ2_XXS GGUF, our own patches and a DSpark drafter. The decision rule, written before the run, adopted the vLLM engine if all three held:
 1. its total time over 18 episodes of W01 is lower;
 2. it passes at most 2 fewer of the 18 episodes;
-3. its outputs are no further from the model's reference implementation.
+3. its fidelity against a reference model's output distribution is no worse.
 
 W01 is our agent-task benchmark: six long-context coding and analysis tasks with real tool calls, graded mechanically. One draw runs all six, with thinking on, at temperature 1.0. Each engine ran three draws, each in a fresh prompt-cache namespace, timed on the client.
 
@@ -40,12 +40,13 @@ W01 is our agent-task benchmark: six long-context coding and analysis tasks with
 | W01 total, 18 episodes | **1,067.18 s** | 1,486.61 s |
 | Per draw | 465.21 / 304.64 / 297.34 s | 518.02 / 407.57 / 561.02 s |
 | Episodes passed | 13 of 18 | 15 of 18 |
-| KL against the reference (y24 / de-prose / needle-32k) | **0.129 / 0.095 / 0.105** | 0.270 / 0.229 / 0.199 |
+| Fidelity against a reference model's output distribution: KL on three text sets, lower is closer | **0.129 / 0.095 / 0.105** | 0.270 / 0.229 / 0.199 |
 
 What this does and does not show:
-- **A lower total in this run, not a general speedup.** The three draws per engine ran one after another on one afternoon, with no significance test, and the per-draw totals overlap.
+- **A lower total in this run, not a general speedup.** This was a decision rule written before the run, not a randomized comparison. The draws ran in sequence on one afternoon: two llama.cpp draws, then the vLLM engine's three, then the third llama.cpp draw. No significance test was registered, and the per-draw totals overlap.
 - **Passes:** 13 against 15 is within the rule's limit of 2 fewer. It is not evidence that quality is equal.
-- **Fidelity:** KL is measured teacher-forced on the top 64 log-probabilities, against the checkpoint's own reference code. Lower is closer. Two runs of the reference itself differ by 0.017–0.031 on the same items.
+- **Fidelity:** KL against the output distribution of the checkpoint's own reference code, teacher-forced on the top 64 log-probabilities, on three text sets. Lower is closer. Two runs of the reference itself differ by 0.017–0.031 on the same sets.
+- **Before schedule 2:** this run measured the vLLM engine with its default CPU-expert schedule, before the part below was served, so its total and the step-time figure below don't combine.
 
 ## New part, served: diffbot's second CPU-expert schedule
 
@@ -105,12 +106,12 @@ It was lower in all five blocks: confirmed, one-sided exact sign test p = 1/32.
 
 What this does and does not show:
 - **Step time, not task time.** A verify step is one pass of the target model over the draft tokens. How much of a task's time that is depends on the task.
-- **Quality is not settled.** The schedule changes the order in which floating-point sums are added, so outputs can change. A fidelity check could not settle it: two starts of the unchanged engine already differed by more than the check's tolerance.
+- **Quality is not settled.** The schedule changes the order in which floating-point sums are added, so outputs can change. A fidelity check could not settle it: two starts of the same engine configuration already differed by more than the check's tolerance.
 - **Served on a policy call.** Our campaign manager put schedule 2 into serving on 1 November, on the step-time result, with a revert rule: a failure that only schedule 2 shows, a lower pass rate or a quality regression sends it back. A randomized W01 comparison of the two schedules, 10 blocks, is running now. Its result goes in the next note.
 
 ## New part, up next: a prompt region cache
 
-An agent request carries the whole conversation so far. In W01 the prompts are 105K–175K tokens long, and one text region between the chat template's control tokens makes up 98–99% of each one. That region repeats unchanged from request to request, and the server tokenized it again every time: about 0.1–0.2 s per request on the CPU.
+An agent request carries the whole conversation so far. In W01 the prompts are 105K–175K tokens long, and one text region between the chat template's control tokens makes up 98–99% of each one. That region repeats verbatim from request to request, and the server tokenized it again every time: about 0.1–0.2 s per request on the CPU.
 
 diffbot's recipe already cuts each prompt at the template's control tokens and tokenizes the regions in one batch call. Our hook wraps that call with a cache from region text to token IDs, bounded and least-recently-used first. A region seen before gets its stored IDs, and the rest are tokenized as before. Each region is tokenized on its own, with no padding, truncation or carry-over between regions, so stored IDs should equal fresh ones. We checked that on all 1,915 recorded W01 and agent-task requests, and again in every engine start below.
 
