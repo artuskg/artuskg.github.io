@@ -16,7 +16,7 @@ The target is unchanged: [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deeps
 ## Summary
 
 - **Adopted: our first own part, an exact top-k kernel for DeepSeek-V4.1's attention indexer.** Its output equalled the served kernel's byte for byte on every real call we checked: 776 on rows that fit its key cache, 1,024 on longer rows. We count it at 0.31 ms per verify step, about 0.64 s per agent task. Served rows don't carry it yet: putting it into the served stack is next, and its gain there hasn't been measured.
-- **Measured inside the engine:** on a replayed agent session, verify steps were faster with it in 3 of 3 paired engine starts, by 0.377 ms on average. The counted 0.31 ms is the difference on the turns that draft the way served steps do.
+- **Measured inside the engine:** on a replayed agent session, verify steps were faster with it in 3 of 3 paired engine starts, by 0.377 ms on average. The counted 0.31 ms is the difference on the turns that draft the way served steps do (a descriptive split, not paired).
 - **A yardstick for every engine lever: model seconds per task.** Over 54 served draws, model time is 89.6% of the time of an agent-task draw, and tool calls are 5.7%. One millisecond per verify step is worth about 2.06 s per task.
 - **Three more levers, measured and parked.** Each saved less than its rule asked for.
 
@@ -104,7 +104,7 @@ Each of rs8's eight blocks keeps up to 22,928 of a row's keys in a cache, 183,42
 
 So BrightPeak captured the served indexer's inputs and outputs on four of those turns, with prompts of 184,809 to 191,998 tokens, and ran rs8 on the same inputs:
 - rs8's whole output buffer equalled the served kernel's on all 1,024 calls of 128 steps, both run directly and inside CUDA graphs.
-- On 3,912 rows checked against a reference implementation, 90 of them edge cases, none differed. A deliberately wrong build differed on 213, so the check can fail.
+- On 3,912 rows from 251 test cases checked against a reference implementation, 90 of the cases at the edge of the key cache, none differed. A deliberately wrong build differed on 213, so the check can fail.
 
 That is real-row coverage from four turns of one session, not a proof for every input.
 
@@ -115,7 +115,7 @@ That is real-row coverage from four turns of one session, not a proof for every 
 SageSummit split 54 served W01 draws from 5 November: 18 rows of three draws, one request at a time, on the stack before rs8. W01 is our agent-task benchmark: six long-context coding and analysis tasks with real tool calls, graded mechanically.
 
 {::nomarkdown}
-<div class="brrr"><section class="card" id="c-w10-time-split">
+<div class="brrr"><section class="card" id="c-draw-time-split">
 <svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Stacked bar of one W01 agent-task draw, 233.83 seconds on average over 54 served draws: decode 174.58 s, time to first token 34.84 s, tool calls 13.33 s, outside requests and tools 11.09 s. Model time, decode plus time to first token, is 209.41 s, 89.6 percent.">
 <rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
 <text x="70.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Where an agent-task draw's 233.83 s go: model time is 89.6 %</text>
@@ -201,3 +201,5 @@ rs8 goes into the served stack. Its first served rows will answer a named questi
 ## AI assistance
 
 AI agents (Claude and GPT models) designed, wrote and ran these tests and the kernel. An independent AI reviewer checked each design before launch and audited each result afterwards, and an AI agent drafted this post. Artus set the goal, authorized the hardware and asked for these progress notes.
+
+*Corrected 6 November: the 90 edge items are test cases, not rows; the 0.31 ms split is descriptive, not paired.*
