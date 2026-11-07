@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 7 November 2026, 16:20 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
+*Last updated: 7 November 2026, 16:28 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -34,7 +34,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 - **Task seconds per task** add the tools and the network, on the client's clock.
 - **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once-measuring).
 - **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
-- **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. On AWS, short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. diffbot's recipe keeps its published 5, as ours does, and the 2-bit version's drafter wasn't tuned.
+- **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. Short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. Ours kept 5 after a test against 7 on 1 November. diffbot's recipe as published and the 2-bit version used 5 without a test.
 - **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
 
 ## Is it worth it?
@@ -278,6 +278,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **7 November 2026, 16:28 UTC:** one wording fixed: our server's draft length was tested too (5 kept over 7, on 1 November), so the drafter note now says so.
 - **7 November 2026, 16:20 UTC:** the first table's last measuring row is in:
   - **Full quality on 2 cards with its drafter** took 330.5 s (2 draws), against 352.9 s without. That's no worse, maybe 5 to 10% better, inside the spread. So squeezing the model onto 2 cards costs about 9.5x ours, not 10x.
   - **On the chart,** the full-quality point moved to 330.5 s, so every DeepSeek point there has its drafter.
