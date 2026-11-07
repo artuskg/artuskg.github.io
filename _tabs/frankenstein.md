@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 7 November 2026, 13:33 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
+*Last updated: 7 November 2026, 16:20 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -19,7 +19,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 - **NVIDIA's full-quality version on 4 cards needs 36.4 s,** with its drafter set the same way as ours. The two are **about level.** Ours takes about 4.5% less model time, which is less than the spread between single draws. So our 3-bit Frankenstein gets 4-card full-quality speed from half the cards. The price is quality that hasn't been measured on public benchmarks yet.
 - **A second 4-card run, with vLLM's default draft setting, needed 42.8 s.** It accepted fewer of the drafter's guesses and thought longer. Whether the setting explains the gap isn't settled with 3 draws each.
 - **On AWS's own 2 cards, diffbot's recipe as published needs 58.9 s.** That's the same 3-bit pack, without our parts. The gap down to our 34.8 s is the home hardware plus our parts, and we haven't split it further.
-- **Squeezing the full-quality model onto 2 cards costs about 10x:** 352.9 s, because the CPU has to compute most of the model. A 2-bit version small enough to fit entirely on 2 cards needed 150.2 s on ExLlamaV3's own server, because diffbot's engine couldn't load it.
+- **Squeezing the full-quality model onto 2 cards costs about 9.5x:** 330.5 s with its drafter (352.9 s without), because the CPU has to compute most of the model. A 2-bit version small enough to fit entirely on 2 cards needed 150.2 s on ExLlamaV3's own server, because diffbot's engine couldn't load it; its drafter wasn't tuned.
 - **Since our first version, we're about 2x faster,** from 82.6 s to 39.0 s per task. The first figures come from an older version of the test.
 - **Quality:** our 3-bit version has no public benchmark score of its own. On our small test, it passed 83% of tasks. The other setups passed 78% to 94%, on too few tasks to rank them.
 
@@ -34,7 +34,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 - **Task seconds per task** add the tools and the network, on the client's clock.
 - **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once-measuring).
 - **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
-- **Drafters:** every setup gets its drafter unless the row says otherwise. A drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them.
+- **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. On AWS, short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. diffbot's recipe keeps its published 5, as ours does, and the 2-bit version's drafter wasn't tuned.
 - **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
 
 ## Is it worth it?
@@ -42,7 +42,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 {::nomarkdown}
 <link rel="stylesheet" href="/assets/posts/qwen3-8-rtx-pro-6000/charts.css">
 <div class="brrr"><section class="card" id="c-worth-it">
-<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Scatter plot of seconds per task, on a log scale, against each maker's DeepSWE v1.1 score. DeepSeek-V4.1-Flash-1017 at 77.0: ours, 3-bit on 2 cards, 34.8 s, drawn hollow because 77.0 is the full model's score; NVIDIA's FP4 on 4 cards 36.4 s; a 2-bit version on 2 cards 150.2 s, hollow; full quality on 2 cards 352.9 s. Qwen3.8 Flash Next at 58.7: 77.7 s as released, 49.9 s on our tuned stack. Qwen3.8 27B at 42.2: 181.3 s as released, 140.3 to 145.1 s tuned. Tuned points are hollow too.">
+<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Scatter plot of seconds per task, on a log scale, against each maker's DeepSWE v1.1 score. DeepSeek-V4.1-Flash-1017 at 77.0: ours, 3-bit on 2 cards, 34.8 s, drawn hollow because 77.0 is the full model's score; NVIDIA's FP4 on 4 cards 36.4 s; a 2-bit version on 2 cards 150.2 s, drafter not tuned, hollow; full quality on 2 cards with its drafter 330.5 s. Qwen3.8 Flash Next at 58.7: 77.7 s as released, 49.9 s on our tuned stack. Qwen3.8 27B at 42.2: 181.3 s as released, 140.3 to 145.1 s tuned. Tuned points are hollow too.">
 <rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
 <text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Is it worth it? Time per task against a public coding score</text>
 <text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSWE v1.1 as each maker reports it · seconds per task on our 6-task agent test, one request at a time · up and left is better</text>
@@ -76,8 +76,8 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 <text x="1044.8" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">400 s</text>
 <text x="1120.0" y="569.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">seconds per task (log scale)</text>
 <text x="60.0" y="152.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">DeepSWE v1.1 score</text>
-<g><title>Full quality on 2 cards (AWS): 352.9 s model time per task · DeepSWE 77.0</title><circle cx="1002.5" cy="226.8" r="15" style="fill:transparent"/><circle cx="1002.5" cy="226.8" r="9" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
-<g><title>2-bit version, all on 2 cards (AWS, TabbyAPI + ExLlamaV3): 150.2 s model time per task · 77.0 is the full model's score, an upper bound here</title><circle cx="714.5" cy="226.8" r="15" style="fill:transparent"/><circle cx="714.5" cy="226.8" r="9" style="fill:var(--surface,#fcfcfb);stroke:var(--s1,#2a78d6);stroke-width:3"/></g>
+<g><title>Full quality on 2 cards (AWS), with its DSpark drafter: 330.5 s model time per task, 2 draws (352.9 s without the drafter) · DeepSWE 77.0</title><circle cx="980.4" cy="226.8" r="15" style="fill:transparent"/><circle cx="980.4" cy="226.8" r="9" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
+<g><title>2-bit version, all on 2 cards (AWS, TabbyAPI + ExLlamaV3), drafter not tuned: 150.2 s model time per task · 77.0 is the full model's score, an upper bound here</title><circle cx="714.5" cy="226.8" r="15" style="fill:transparent"/><circle cx="714.5" cy="226.8" r="9" style="fill:var(--surface,#fcfcfb);stroke:var(--s1,#2a78d6);stroke-width:3"/></g>
 <g><title>NVIDIA's FP4 on 4 cards (AWS), draft setting as ours: 36.4 s model time per task · DeepSWE 77.0</title><circle cx="236.9" cy="226.8" r="14" style="fill:transparent"/><circle cx="236.9" cy="226.8" r="8" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
 <g><title>Ours, 3-bit on 2 cards: 34.8 s model time per task · 77.0 is the full model's score, an upper bound for ours</title><circle cx="221.3" cy="226.8" r="14" style="fill:transparent"/><circle cx="221.3" cy="226.8" r="8" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:3"/></g>
 <line x1="478.5" x2="365.1" y1="356.7" y2="356.7" style="stroke:var(--muted,#898781);stroke-width:1.5"/><path d="M359.1 356.7 l8 -5 v10 Z" style="fill:var(--muted,#898781)"/>
@@ -89,10 +89,11 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 <text x="209.3" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Ours, 3-bit, 2 cards: 34.8 s</text>
 <text x="224.9" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">NVIDIA's FP4, 4 cards: 36.4 s</text>
 <text x="714.5" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="middle">2-bit, all on 2 cards: 150.2 s</text>
-<text x="1002.5" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">Full quality, 2 cards: 352.9 s</text>
+<text x="714.5" y="280.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">drafter not tuned</text>
+<text x="980.4" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">Full quality, 2 cards, with its drafter: 330.5 s</text>
 <text x="333.1" y="334.7" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 Flash Next, 2 cards: 77.7 s as released, 49.9 s tuned</text>
 <text x="679.6" y="451.9" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 27B, 1 card: 181.3 s as released, 140.3-145.1 s tuned</text>
-<text x="60.0" y="617.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">DeepSeek's points use model time (server clock, temperature 1.0); the Qwen points use task time from October runs with greedy decoding.</text>
+<text x="60.0" y="617.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">DeepSeek's points use model time (server clock, temperature 1.0), each with its drafter; the Qwen points use task time from October runs with greedy decoding.</text>
 <text x="60.0" y="635.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">Hollow: lower-precision weights with no score of their own, so the release's score is an upper bound. NVIDIA's FP4 has its own, within 0.7 points of the original.</text>
 <text x="60.0" y="653.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">The makers ran DeepSWE in different harnesses. Ours runs on Workstation Edition cards at home, the other points on AWS's Server Edition.</text>
 </svg>
@@ -106,7 +107,7 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
   - the Qwen models on our tuned stacks, which run lower-precision weights than Qwen's releases;
   - the 2-bit version that fits on 2 cards. turboderp reports 90.4% on GPQA Diamond for it, against 90.2% for the original (a figure turboderp took from OpenRouter), but it has no DeepSWE score.
 
-  NVIDIA's FP4 version is drawn solid because NVIDIA reports its own scores, within 0.7 points of the original on six benchmarks. The chart shows NVIDIA's 4-card run with the same draft setting as ours.
+  NVIDIA's FP4 version is drawn solid because NVIDIA reports its own scores, within 0.7 points of the original on six benchmarks. Every DeepSeek point on the chart has its drafter, and NVIDIA's 4-card run is the one with the same draft setting as ours.
 - **Harnesses:** the makers ran DeepSWE in different harnesses:
   - DeepSeek used Mini-SWE-V2;
   - Qwen3.8 27B used Claude Code;
@@ -116,7 +117,7 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 
 {::nomarkdown}
 <div class="brrr"><section class="card" id="c-same-model-setups">
-<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="Bar chart of model seconds per task for DeepSeek-V4.1-Flash-1017 on our 6-task agent test, one request at a time. Ours, 3-bit on 2 cards at home with its drafter: 34.8 s. NVIDIA's FP4 on 4 cards on AWS: 36.4 s with the same draft setting as ours, 42.8 s with vLLM's default, 76.1 s without a drafter. On AWS's 2 cards: diffbot's recipe as published 58.9 s, a 2-bit version on the cards 150.2 s, full quality with the experts on the CPU 352.9 s. One more setup is still measuring.">
+<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 740" width="1200" height="740" role="img" aria-label="Bar chart of model seconds per task for DeepSeek-V4.1-Flash-1017 on our 6-task agent test, one request at a time. Ours, 3-bit on 2 cards at home with its drafter: 34.8 s. NVIDIA's FP4 on 4 cards on AWS: 36.4 s with the same draft setting as ours, 42.8 s with vLLM's default, 76.1 s without a drafter. On AWS's 2 cards: diffbot's recipe as published 58.9 s, a 2-bit version on the cards 150.2 s with an untuned drafter, full quality with the experts on the CPU 330.5 s with its drafter and 352.9 s without.">
 <rect width="1200" height="740" style="fill:var(--surface,#fcfcfb)"/>
 <text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">One model, several setups: model time per task</text>
 <text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on our 6-task agent test · server clock · one request at a time · lower is better</text>
@@ -151,16 +152,17 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 <g><title>diffbot's recipe as published: 58.9 s of model time per task</title><path d="M520 373 h82.9 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-82.9 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="368" width="86.9" height="34" style="fill:transparent"/></g>
 <text x="616.9" y="390.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">58.9 s</text>
 <text x="60.0" y="440.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">2-bit, all on 2 cards</text>
-<text x="60.0" y="460.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · turboderp's EXL3 on TabbyAPI + ExLlamaV3 · 3 draws</text>
+<text x="60.0" y="460.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · turboderp's EXL3, ExLlamaV3 · drafter not tuned · 3 draws</text>
 <g><title>2-bit, all on 2 cards: 150.2 s of model time per task</title><path d="M520 433 h217.5 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-217.5 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="428" width="221.5" height="34" style="fill:transparent"/></g>
 <text x="751.5" y="450.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">150.2 s</text>
 <text x="60.0" y="500.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Full quality on 2 cards</text>
-<text x="60.0" y="520.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · experts computed by the CPU · no drafter · 3 draws</text>
-<g><title>Full quality on 2 cards: 352.9 s of model time per task</title><path d="M520 493 h516.5 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-516.5 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="488" width="520.5" height="34" style="fill:transparent"/></g>
-<text x="1050.5" y="510.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">352.9 s</text>
-<text x="60.0" y="560.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Full quality on 2 cards, drafter</text>
-<text x="60.0" y="580.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · experts computed by the CPU</text>
-<g><title>Full quality on 2 cards, drafter: still measuring</title><rect x="520" y="553" width="150" height="24" rx="4" style="fill:none;stroke:var(--axis,#c3c2b7);stroke-width:1.5;stroke-dasharray:5 4"/><text x="595.0" y="570.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">measuring</text></g>
+<text x="60.0" y="520.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · experts computed by the CPU · DSpark, 3 tokens · 2 draws</text>
+<g><title>Full quality on 2 cards: 330.5 s of model time per task</title><path d="M520 493 h483.5 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-483.5 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="488" width="487.5" height="34" style="fill:transparent"/></g>
+<text x="1017.5" y="510.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">330.5 s</text>
+<text x="60.0" y="560.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Full quality on 2 cards, no drafter</text>
+<text x="60.0" y="580.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · experts computed by the CPU · 3 draws</text>
+<g><title>Full quality on 2 cards, no drafter: 352.9 s of model time per task</title><path d="M520 553 h516.5 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-516.5 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="548" width="520.5" height="34" style="fill:transparent"/></g>
+<text x="1050.5" y="570.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">352.9 s</text>
 <line x1="520" x2="520" y1="114" y2="594" style="stroke:var(--axis,#c3c2b7);stroke-width:1"/>
 <text x="60.0" y="682.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">Model time: the model's reading and writing per task on the server's own clock, mean over the draws (a draw is all 6 tasks once).</text>
 <text x="60.0" y="700.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">Ours runs on RTX PRO 6000 Workstation Edition cards at home, the AWS rows on Server Edition cards; our parts aren't on AWS, so these gaps mix hardware and software.</text>
@@ -176,9 +178,9 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 | NVIDIA's FP4, vLLM's default draft setting | 4 Server, AWS | DSpark 5, greedy | 42.8 | 63.9 | 15/18 | 227.0 | 3 |
 | NVIDIA's FP4, no drafter | 4 Server, AWS | none | 76.1 | 103.8 | 14/18 | 102.5 | 3 |
 | diffbot's recipe as published | 2 Server, AWS | DSpark 5 | 58.9 | 82.9 | 17/18 | 172.6 | 3 |
-| 2-bit, all on 2 cards | 2 Server, AWS | MTP 5 | 150.2 | 195.9 | 14/18 | 88.8 | 3 |
-| **Full quality on 2 cards** | 2 Server, AWS | none | **352.9** | 384.4 | 16/18 | 24.3 | 3 |
-| Full quality on 2 cards, drafter | 2 Server, AWS | DSpark | *measuring* | | | | |
+| 2-bit, all on 2 cards | 2 Server, AWS | MTP 5, not tuned | 150.2 | 195.9 | 14/18 | 88.8 | 3 |
+| **Full quality on 2 cards** | 2 Server, AWS | DSpark 3 | **330.5** | 364.3 | 10/12 | 26.5 | 2 |
+| Full quality on 2 cards, no drafter | 2 Server, AWS | none | 352.9 | 384.4 | 16/18 | 24.3 | 3 |
 
 The setups:
 - **Ours:** diffbot's EXL3 3-bit pack in vLLM, plus our parts, on RTX PRO 6000 Workstation Edition cards at home.
@@ -189,21 +191,24 @@ The setups:
 - **diffbot's recipe as published:** the same 3-bit pack and serving recipe as ours, exactly as diffbot published them, on AWS's 2 cards. Our parts aren't in it. The CPU computes its rarest experts on 2 × 11 cores of a 24-core Xeon, against 64 Zen 5 cores at home.
 - **2-bit, all on 2 cards:** turboderp's EXL3 at 2.25 bits per weight, small enough that every weight fits on the cards.
   - diffbot's engine can't load it: turboderp quantizes every layer, and diffbot's engine expects that only for the experts.
-  - So it ran on TabbyAPI with ExLlamaV3 1.6.6, using its MTP head as the drafter, 5 tokens ahead.
+  - So it ran on TabbyAPI with ExLlamaV3 1.6.6, using its MTP head as the drafter, 5 tokens ahead. We didn't test other lengths, so its drafter isn't tuned.
   - The engine and the quantization both differ from the other rows, so this row doesn't isolate either one.
-- **Full quality on 2 cards:** the original model on our size, with its experts computed by the CPU (SGLang and kTransformers).
-- **DSpark 5** is DeepSeek's DSpark drafter, guessing 5 tokens ahead.
+- **Full quality on 2 cards:** the original model on 2 cards, with most of its experts computed by the CPU (SGLang and kTransformers).
+  - The first row has DeepSeek's DSpark drafter, guessing 3 tokens ahead, which beat 5 in a short test.
+  - It differs from the row without a drafter in two more ways. A one-line patch was needed before the drafter would load at all. And the recipe's KV-memory lending is off: it keeps more experts on the cards in spare KV-cache memory, and with it on, the first drafted step crashed.
+- **DSpark 5** and **DSpark 3** are DeepSeek's DSpark drafter, guessing 5 or 3 tokens ahead.
 
 Notes:
 - **Single-user speed:** every row is one request at a time. How many users each setup serves at once is not measured yet ([Throughput](#throughput-several-users-at-once-measuring)).
-- **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards, and the 2-card ones on a smaller CPU. Our parts aren't on AWS, so diffbot's recipe as published is the AWS baseline. On the same AWS cards, the 4-card FP4 run takes 0.62x its time, and the 2-bit run 2.55x.
+- **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards, and the 2-card ones on a smaller CPU. Our parts aren't on AWS, so diffbot's recipe as published is the AWS baseline. On the same AWS cards, the 4-card FP4 run takes 0.62x its time, the 2-bit run 2.55x, and full quality on 2 cards with its drafter 5.6x.
 - **What the drafter is worth:** on the 4-card setup, it cuts model time from 76.1 s to 36.4 s (2.1x). The two drafted runs differ by 6.4 s per task. The run with vLLM's default accepted fewer guesses per step (2.45 against 2.78), and its draws thought 12% longer. That the draft setting causes the gap is a hypothesis with 3 draws each, not a result. The draft length of 5 tokens matches our server; a short test of 3, 5 and 7 before the first drafted run found 3 and 5 tied.
+- **With the experts on the CPU, the drafter is worth little:** full quality on 2 cards took 330.5 s with it, against 352.9 s without (0.94x). Read that as no worse, maybe 5 to 10% better, not as a measured gain: the draws without it ranged from 306 to 377 s per task, and the two setups differ in more than the drafter (above). The CPU still computes most of the experts, and a drafter can't change that. Our reading, not measured: each guess the big model checks costs CPU work too.
 - **The 2-bit version writes slower as the context grows:** 77 tokens/s at 128,000 tokens in a short test, against 163 to 184 at 8,000 to 64,000.
-- **Few draws on AWS:** 3 draws each (18 tasks), against our 54. Pass counts from 18 tasks are too few to rank quality. Every failed task on AWS was one of the two document questions, on citations, and every coding task passed.
+- **Few draws on AWS:** 3 draws each (18 tasks), and 2 for full quality on 2 cards with its drafter (12 tasks), against our 54. Pass counts from 12 or 18 tasks are too few to rank quality. Every failed task on AWS was one of the two document questions, on citations, and every coding task passed.
 - **The "original":** DeepSeek ships the model's experts in 4-bit form, so the original is already 4-bit where most of the weights are. NVIDIA's FP4 version makes their arithmetic 4-bit too, and NVIDIA reports it within 0.7 points of the original on the six benchmarks it ran.
 - **Our row** was measured on 5 November. The part we added since (our top-k kernel, Part 5) saves about 0.3 ms per decoding step, too little to show up in task time with the rows run so far.
 - **Writing speed** is on the server's clock, while the model writes.
-- **Mac load:** two of the 4-card draws without the drafter ran while our Mac had extra load. That affects only their task seconds, not model time.
+- **Mac load:** five AWS draws ran while our Mac had extra work on it: two of the 4-card draws without the drafter, one of diffbot's recipe as published and two of the 2-bit version. That affects only their task seconds; model time is counted on the AWS machine.
 
 ## How much faster than our first version
 
@@ -242,7 +247,6 @@ Everything above is single-user speed. How much a box can serve to many users at
 
 ## Still measuring
 
-- Full quality on 2 cards, with its drafter.
 - diffbot's recipe as published, rerun on today's test on our box.
 - Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings.
 - Throughput with several users at once, for both models.
@@ -274,6 +278,11 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **7 November 2026, 16:20 UTC:** the first table's last measuring row is in:
+  - **Full quality on 2 cards with its drafter** took 330.5 s (2 draws), against 352.9 s without. That's no worse, maybe 5 to 10% better, inside the spread. So squeezing the model onto 2 cards costs about 9.5x ours, not 10x.
+  - **On the chart,** the full-quality point moved to 330.5 s, so every DeepSeek point there has its drafter.
+  - **The 2-bit row** now says its drafter wasn't tuned.
+  - **The Mac-load note** now names all five AWS draws that ran with extra work on our Mac.
 - **7 November 2026, 13:33 UTC:** AWS round 2 changes the headline:
   - **About level now, not 1.2x.** NVIDIA's 4-card FP4 run with the same draft setting as ours took 36.4 s, against our 34.8 s, so "about 1.2x faster" no longer stands. The 42.8 s run stays, as a second run with vLLM's default draft setting.
   - **The "ours on AWS's cards" row is replaced** by diffbot's recipe as published on AWS (58.9 s), because our parts aren't on AWS.
