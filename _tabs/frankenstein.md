@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 7 November 2026, 12:48 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
+*Last updated: 7 November 2026, 12:50 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -158,16 +158,25 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 </section></div>
 {:/nomarkdown}
 
-| Setup | Cards | Drafter | Model s per task | Task s per task | Tasks passed | Writing speed, tokens/s | Draws |
+| Setup | Cards | Drafter | Model s per task | Task s per task | Passed | Writes, tokens/s | Draws |
 |---|---|---|---:|---:|---:|---:|---:|
-| **Ours: the 3-bit Frankenstein** (diffbot's EXL3 3-bit pack in vLLM, plus our parts) | 2 RTX PRO 6000 Workstation, at home | DSpark, 5 tokens | **34.8** | **39.0** | 270 of 324 | 259 | 54 |
-| **Full quality where it fits:** NVIDIA's FP4 version in vLLM | 4 RTX PRO 6000 Server, AWS | DSpark, 5 tokens | **42.8** | 63.9 | 15 of 18 | 227 | 3 |
-| Same, without its drafter (to show what the drafter is worth) | 4 Server, AWS | none | 76.1 | 103.8 | 14 of 18 | 102.5 | 3 |
-| **Full quality on our size:** the original model, with its experts computed by the CPU (SGLang and kTransformers) | 2 Server, AWS | none | **352.9** | 384.4 | 16 of 18 | 24.3 | 3 |
-| Ours on AWS's cards (separates hardware from software) | 2 Server, AWS | DSpark | *measuring* | | | | |
-| A 2-bit version that fits entirely on 2 cards (turboderp's EXL3, 2.25 bits per weight) | 2 Server, AWS | | *measuring* | | | | |
-| Full quality on our size, with its drafter | 2 Server, AWS | DSpark | *measuring* | | | | |
+| **Ours: the 3-bit Frankenstein** | 2 Workstation, home | DSpark 5 | **34.8** | **39.0** | 270/324 | 259 | 54 |
+| **NVIDIA's FP4, full quality** | 4 Server, AWS | DSpark 5 | **42.8** | 63.9 | 15/18 | 227 | 3 |
+| NVIDIA's FP4, no drafter | 4 Server, AWS | none | 76.1 | 103.8 | 14/18 | 102.5 | 3 |
+| **Full quality on 2 cards** | 2 Server, AWS | none | **352.9** | 384.4 | 16/18 | 24.3 | 3 |
+| Ours on AWS's cards | 2 Server, AWS | DSpark 5 | *measuring* | | | | |
+| 2-bit, all on 2 cards | 2 Server, AWS | | *measuring* | | | | |
+| Full quality on 2 cards, drafter | 2 Server, AWS | DSpark | *measuring* | | | | |
 
+The setups:
+- **Ours:** diffbot's EXL3 3-bit pack in vLLM, plus our parts, on RTX PRO 6000 Workstation Edition cards at home.
+- **NVIDIA's FP4:** full quality where it fits, NVIDIA's 4-bit version in vLLM on 4 RTX PRO 6000 Server Edition cards. The row without its drafter is there only to show what the drafter is worth.
+- **Full quality on 2 cards:** the original model on our size, with its experts computed by the CPU (SGLang and kTransformers).
+- **Ours on AWS's cards** separates hardware from software.
+- **2-bit, all on 2 cards:** turboderp's EXL3 at 2.25 bits per weight, small enough to fit entirely on the cards.
+- **DSpark 5** is DeepSeek's DSpark drafter, guessing 5 tokens ahead.
+
+Notes:
 - **Single-user speed:** every row is one request at a time. How many users each setup serves at once is not measured yet ([Throughput](#throughput-several-users-at-once-measuring)).
 - **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards. The "ours on AWS's cards" row will separate the two.
 - **What the drafter is worth:** on the 4-card setup, it makes model time 1.8x shorter (76.1 s down to 42.8 s). Its draft length of 5 tokens was chosen in a short test of 3, 5 and 7 before the draws, where 3 and 5 tied within the test's noise.
@@ -247,5 +256,6 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **7 November 2026, 12:50 UTC:** the first table made narrower, with the setups described below it; no numbers changed.
 - **7 November 2026, 12:48 UTC:** a note that every number is single-user speed, under the first table and on both charts, and a Throughput section, still measuring.
 - **7 November 2026, 12:43 UTC:** first version. It has 4 setups of DeepSeek-V4.1-Flash-1017 on our test (3 of them new, run on AWS on 7 November), our progress since 31 October, two Qwen3.8 models from October, and the time-against-score chart. Five rows are still measuring.
