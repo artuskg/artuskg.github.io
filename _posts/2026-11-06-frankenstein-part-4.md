@@ -22,7 +22,7 @@ The target is unchanged: [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deeps
 
 ## Our first own part: an exact top-k for the indexer
 
-DeepSeek-V4.1's sparse attention has an indexer, and a top-k kernel keeps the best 512 entries of each indexer row. The served kernel, vLLM's, gives each row one block of 1,024 threads. At one request at a time a verify step has six rows, so each call uses 6 of the GPU's 188 SMs.
+DeepSeek-V4.1's sparse attention has an indexer, and a top-k kernel keeps the best 512 entries of each indexer row. The served kernel, from diffbot's serving recipe, gives each row one block of 1,024 threads. At one request at a time a verify step has six rows, so each call uses 6 of the GPU's 188 SMs.
 
 SilentMountain, one of our agents, wrote rs8. It spreads each row over a cluster of eight blocks, which combine their candidates through the cluster's distributed shared memory. Its output must equal the served kernel's byte for byte: the same keys, in the same order, with the same fill for unused slots. So adopting it changes speed, not results.
 
@@ -98,12 +98,14 @@ The rule had four conditions. Three held: faster in every pair, a mean saving of
 
 **Why we count 0.31 ms, not 0.377.** The replay's verify steps produced about 2.0 to 2.1 tokens each, against 3.74 in served traffic, because on many of its turns the drafter proposed few tokens. rs8 saved more on those turns (0.444 ms per step) than on turns that drafted almost five tokens per step, as served steps do (0.309 ms). Both figures are descriptive, not paired. We count the served-like 0.31 ms: at 2.06 s per task per millisecond (below), about 0.64 s per agent task.
 
+*Correction, 7 November:* the replay's verify steps produced about 2.0 to 2.1 tokens each, but not because the drafter proposed few tokens on live text. The replay ignored end-of-sequence and decoded every turn to its recorded length, so a turn whose new sample ended earlier kept decoding past its end, at about one token per step with no drafting. Served steps draft almost five (4.99 of 5 on average). So the turns where rs8 saved 0.444 ms per step were mostly turns past their end. The part's numbers stand, and so does the counted 0.31 ms per verify step, which comes from fully drafted turns. On served rows rs8 measured 0.314 ms (95% interval 0.217 to 0.410; [Part 5](/2026/11/07/frankenstein-part-5.html)).
+
 ### Long rows
 
 Each of rs8's eight blocks keeps up to 22,928 of a row's keys in a cache, 183,424 for the cluster. Longer rows take a separate tail path. The real rows of step 2 all fit in the cache. Seven of the replay's 50 turns didn't, but a replay compares text, and text differs between two starts of the same engine anyway.
 
 So BrightPeak captured the served indexer's inputs and outputs on four of those turns, with prompts of 184,809 to 191,998 tokens, and ran rs8 on the same inputs:
-- rs8's whole output buffer equalled the served kernel's on all 1,024 calls of 128 steps, both run directly and inside CUDA graphs.
+- rs8's whole output buffer equalled the served kernel's on all 1,024 calls of 128 steps, both run directly and inside CUDA graphs. *Correction, 7 November:* two of the four turns ended early, so 53 of the 128 steps decoded past the sampled end. rs8 matched there too; before the ends it matched on 600 of 600 calls in 75 steps, 375 of them on rows longer than its key cache.
 - On 3,912 rows from 251 test cases checked against a reference implementation, 90 of the cases at the edge of the key cache, none differed. A deliberately wrong build differed on 213, so the check can fail.
 
 That is real-row coverage from four turns of one session, not a proof for every input.
@@ -183,7 +185,7 @@ These are served runs on one day, not an A/B against Part 3's 228.2 s from 3 Nov
 
 Each had a rule written before it ran, and each saved less than its rule asked for:
 - **The split-K reduce fused into the dense matrix-vector kernels** (SilentMountain). Bit-equal: 0 of 1,216 checks unequal, and 0 of 10,000 soak replays mismatched. It saved 0.045 ms per 279-call step-set, the median of 400 rounds and positive in all 400, against the rule's 0.10.
-- **Isolating worker threads from the CPU-expert pools' cores**, a switch already in diffbot's recipe (SageSummit). It saved 0.047 ms per verify step, lower in 3 of 3 pairs, against the rule's 0.15. On the same replayed draw, the served engine's six starts across this test and rs8's lay within 0.053 ms of each other, about four hours apart.
+- **Isolating worker threads from the CPU-expert pools' cores**, a switch already in diffbot's recipe (SageSummit). It saved 0.047 ms per verify step, lower in 3 of 3 pairs, against the rule's 0.15. On the same replayed draw, the served engine's six starts across this test and rs8's lay within 0.053 ms of each other, about four hours apart. *Correction, 7 November:* this figure comes from the same kind of replay. On fully drafted turns it was 0.078 ms, still under the 0.15 ms rule, so the lever stays parked.
 - **A smaller vocabulary for the drafter's output head** (BrightPeak's CPU check, parked by SageSummit, no GPU time). With a 32K-token subset, a held-out task had 1.185% of its tokens outside it. That would cost 1.93 to 2.06% of tokens per step, more than the 1.4% that the head's saving of about 0.2 ms per step pays for.
 
 ## Next
@@ -192,8 +194,8 @@ rs8 goes into the served stack. Its first served rows will answer a named questi
 
 ## Credits
 
-- **vLLM** for the engine and for the served top-k kernel that rs8 replaces and matches byte for byte.
-- **diffbot** for the EXL3 3-bit pack and its serving recipe, including the CPU-expert runtime and its thread-isolation switch.
+- **vLLM** for the engine.
+- **diffbot** for the EXL3 3-bit pack and its serving recipe, including the served top-k kernel that rs8 replaces, matches byte for byte and builds on, and the CPU-expert runtime with its thread-isolation switch.
 - **turboderp** for the EXL3 format.
 - **kacper-daftcode** for [vLLM-Moet](https://github.com/kacper-daftcode/vLLM-Moet)'s SM120 mHC overlap and its kernels (commit `ec8a1e05e1cb`, Apache-2.0), still served.
 - **DeepSeek** for DeepSeek-V4.1-Flash-1017.
@@ -202,4 +204,4 @@ rs8 goes into the served stack. Its first served rows will answer a named questi
 
 AI agents (Claude and GPT models) designed, wrote and ran these tests and the kernel. An independent AI reviewer checked each design before launch and audited each result afterwards, and an AI agent drafted this post. Artus set the goal, authorized the hardware and asked for these progress notes.
 
-*Corrected 6 November: the 90 edge items are test cases, not rows; the 0.31 ms split is descriptive, not paired.*
+*Corrected 6 November: the 90 edge items are test cases, not rows; the 0.31 ms split is descriptive, not paired. Corrected 7 November: the replay's low tokens per step came from turns decoded past their end, and two of the long-row check's four turns ended early (notes under "Why we count 0.31 ms", the long-row check and the thread-isolation lever). The served top-k kernel that rs8 replaces is diffbot's, from their serving recipe, not vLLM's, as the post first said (fixed in the text and the credits).*
