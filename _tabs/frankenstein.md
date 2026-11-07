@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 7 November 2026, 12:43 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
+*Last updated: 7 November 2026, 12:48 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -30,6 +30,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
   Grading is mechanical: exact facts and line citations for the questions, hidden tests for the code. A *draw* is one pass over all 6 tasks.
 - **Model seconds per task** are the time the model spends reading and writing, on the server's own clock, averaged over the tasks. This is the number we rank by.
 - **Task seconds per task** add the tools and the network, on the client's clock.
+- **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once-measuring).
 - **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
 - **Drafters:** every setup gets its drafter unless the row says otherwise. A drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write.
 - **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
@@ -42,7 +43,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 <svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Scatter plot of seconds per task, on a log scale, against each maker's DeepSWE v1.1 score. DeepSeek-V4.1-Flash-1017 at 77.0: ours, 3-bit on 2 cards, 34.8 s, drawn hollow because 77.0 is the full model's score; NVIDIA's FP4 on 4 cards 42.8 s; full quality on 2 cards 352.9 s. Qwen3.8 Flash Next at 58.7: 77.7 s as released, 49.9 s on our tuned stack. Qwen3.8 27B at 42.2: 181.3 s as released, 140.3 to 145.1 s tuned. Tuned points are hollow too.">
 <rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
 <text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Is it worth it? Time per task against a public coding score</text>
-<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSWE v1.1 as each maker reports it · seconds per task on our 6-task agent test · up and left is better</text>
+<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSWE v1.1 as each maker reports it · seconds per task on our 6-task agent test, one request at a time · up and left is better</text>
 <circle cx="68" cy="112" r="7" style="fill:var(--s1,#2a78d6)"/>
 <text x="82.0" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017, other setups</text>
 <circle cx="412.8" cy="112" r="7" style="fill:none;stroke:var(--s2,#eb6834);stroke-width:3"/>
@@ -113,7 +114,7 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 <svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Bar chart of model seconds per task for DeepSeek-V4.1-Flash-1017 on our 6-task agent test. Ours, 3-bit on 2 cards at home with its drafter: 34.8 s. NVIDIA's FP4 on 4 cards on AWS with its drafter: 42.8 s; without it: 76.1 s. Full quality on 2 cards with the experts on the CPU: 352.9 s. Three more setups are still measuring.">
 <rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
 <text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">One model, several setups: model time per task</text>
-<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on our 6-task agent test · server clock · lower is better</text>
+<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on our 6-task agent test · server clock · one request at a time · lower is better</text>
 <line x1="520.0" x2="520.0" y1="114" y2="548" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
 <text x="520.0" y="568.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">0</text>
 <line x1="667.5" x2="667.5" y1="114" y2="548" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
@@ -167,6 +168,7 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 | A 2-bit version that fits entirely on 2 cards (turboderp's EXL3, 2.25 bits per weight) | 2 Server, AWS | | *measuring* | | | | |
 | Full quality on our size, with its drafter | 2 Server, AWS | DSpark | *measuring* | | | | |
 
+- **Single-user speed:** every row is one request at a time. How many users each setup serves at once is not measured yet ([Throughput](#throughput-several-users-at-once-measuring)).
 - **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards. The "ours on AWS's cards" row will separate the two.
 - **What the drafter is worth:** on the 4-card setup, it makes model time 1.8x shorter (76.1 s down to 42.8 s). Its draft length of 5 tokens was chosen in a short test of 3, 5 and 7 before the draws, where 3 and 5 tied within the test's noise.
 - **Few draws on AWS:** 3 draws each (18 tasks), against our 54. Pass counts from 18 tasks are too few to rank quality. Every failed task on AWS was one of the two document questions, on citations.
@@ -203,6 +205,13 @@ From our October campaign with Qwen3.8 models, on AWS's Server Edition cards.
 - **Our tuned stacks** run the models at lower precision than the releases, with our own kernels, among them SilentMountain's decoding kernel for Flash Next's experts. In October we checked them against the releases on our own tests (math questions, needles in long documents and this agent test), but they have no public scores of their own.
 - **A rerun of Flash Next on our home box** with the DeepSeek rows' settings is queued. It replaces this row when it lands.
 
+## Throughput: several users at once (measuring)
+
+Everything above is single-user speed. How much a box can serve to many users at once is a different question, and we have no concurrency numbers yet for either model. This section will show none until we measure them. What we know so far:
+- **Qwen3.8 Flash Next fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s on two cards together. So a 2-card box can run two copies at once, one per card.
+- **Each copy should also serve many users at once cheaply.** It uses only about 6 billion of its parameters per token, and its linear-attention layers (Gated DeltaNet) keep a fixed-size state per request. This is an expectation, not a measurement.
+- **Our DeepSeek setup needs both cards for one copy,** and the CPU computes its rarest experts, which likely limits how many users it can serve at once. This isn't measured either.
+
 ## Still measuring
 
 - Ours on AWS's cards, to split the 1.2x into hardware and software.
@@ -210,6 +219,7 @@ From our October campaign with Qwen3.8 models, on AWS's Server Edition cards.
 - Full quality on 2 cards, with its drafter.
 - diffbot's recipe as published, rerun on today's test on our box.
 - Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings.
+- Throughput with several users at once, for both models.
 
 ## The story so far
 
@@ -237,4 +247,5 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
-- **7 November 2026:** first version. It has 4 setups of DeepSeek-V4.1-Flash-1017 on our test (3 of them new, run on AWS on 7 November), our progress since 31 October, two Qwen3.8 models from October, and the time-against-score chart. Five rows are still measuring.
+- **7 November 2026, 12:48 UTC:** a note that every number is single-user speed, under the first table and on both charts, and a Throughput section, still measuring.
+- **7 November 2026, 12:43 UTC:** first version. It has 4 setups of DeepSeek-V4.1-Flash-1017 on our test (3 of them new, run on AWS on 7 November), our progress since 31 October, two Qwen3.8 models from October, and the time-against-score chart. Five rows are still measuring.
