@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 7 November 2026, 16:28 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
+*Last updated: 8 November 2026, 05:10 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 5](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -143,14 +143,14 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 <text x="60.0" y="280.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">4 cards on AWS · DSpark, greedy draft setting · 3 draws</text>
 <g><title>NVIDIA's FP4, vLLM's default drafts: 42.8 s of model time per task</title><path d="M520 253 h59.1 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-59.1 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="248" width="63.1" height="34" style="fill:transparent"/></g>
 <text x="593.1" y="270.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">42.8 s</text>
-<text x="60.0" y="320.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">NVIDIA's FP4, no drafter</text>
-<text x="60.0" y="340.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">4 cards on AWS · shows what the drafter is worth · 3 draws</text>
-<g><title>NVIDIA's FP4, no drafter: 76.1 s of model time per task</title><path d="M520 313 h108.3 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-108.3 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="308" width="112.3" height="34" style="fill:transparent"/></g>
-<text x="642.3" y="330.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">76.1 s</text>
-<text x="60.0" y="380.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">diffbot's recipe as published</text>
-<text x="60.0" y="400.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">2 cards on AWS · same 3-bit pack, without our parts · 3 draws</text>
-<g><title>diffbot's recipe as published: 58.9 s of model time per task</title><path d="M520 373 h82.9 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-82.9 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="368" width="86.9" height="34" style="fill:transparent"/></g>
-<text x="616.9" y="390.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">58.9 s</text>
+<text x="60.0" y="320.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">diffbot's recipe as published</text>
+<text x="60.0" y="340.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">2 cards on AWS · same 3-bit pack, without our parts · 3 draws</text>
+<g><title>diffbot's recipe as published: 58.9 s of model time per task</title><path d="M520 313 h82.9 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-82.9 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="308" width="86.9" height="34" style="fill:transparent"/></g>
+<text x="616.9" y="330.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">58.9 s</text>
+<text x="60.0" y="380.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">NVIDIA's FP4, no drafter</text>
+<text x="60.0" y="400.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">4 cards on AWS · shows what the drafter is worth · 3 draws</text>
+<g><title>NVIDIA's FP4, no drafter: 76.1 s of model time per task</title><path d="M520 373 h108.3 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-108.3 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="368" width="112.3" height="34" style="fill:transparent"/></g>
+<text x="642.3" y="390.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">76.1 s</text>
 <text x="60.0" y="440.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">2-bit, all on 2 cards</text>
 <text x="60.0" y="460.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">AWS · turboderp's EXL3, ExLlamaV3 · drafter not tuned · 3 draws</text>
 <g><title>2-bit, all on 2 cards: 150.2 s of model time per task</title><path d="M520 433 h217.5 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-217.5 Z" style="fill:var(--s1,#2a78d6)"/><rect x="520" y="428" width="221.5" height="34" style="fill:transparent"/></g>
@@ -176,8 +176,8 @@ Each point is one model on one setup. Across is its time per task. Up is the sco
 | **Ours: the 3-bit Frankenstein** | 2 Workstation, home | DSpark 5 | **34.8** | **39.0** | 270/324 | 259.4 | 54 |
 | **NVIDIA's FP4, full quality** | 4 Server, AWS | DSpark 5 | **36.4** | 59.3 | 15/18 | 244.8 | 3 |
 | NVIDIA's FP4, vLLM's default draft setting | 4 Server, AWS | DSpark 5, greedy | 42.8 | 63.9 | 15/18 | 227.0 | 3 |
-| NVIDIA's FP4, no drafter | 4 Server, AWS | none | 76.1 | 103.8 | 14/18 | 102.5 | 3 |
 | diffbot's recipe as published | 2 Server, AWS | DSpark 5 | 58.9 | 82.9 | 17/18 | 172.6 | 3 |
+| NVIDIA's FP4, no drafter | 4 Server, AWS | none | 76.1 | 103.8 | 14/18 | 102.5 | 3 |
 | 2-bit, all on 2 cards | 2 Server, AWS | MTP 5, not tuned | 150.2 | 195.9 | 14/18 | 88.8 | 3 |
 | **Full quality on 2 cards** | 2 Server, AWS | DSpark 3 | **330.5** | 364.3 | 10/12 | 26.5 | 2 |
 | Full quality on 2 cards, no drafter | 2 Server, AWS | none | 352.9 | 384.4 | 16/18 | 24.3 | 3 |
@@ -278,6 +278,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **8 November 2026, 05:10 UTC:** the first table and its bar chart are sorted by model time per task, fastest first: diffbot's recipe as published (58.9 s) now comes before NVIDIA's FP4 without a drafter (76.1 s). No number changed.
 - **7 November 2026, 16:28 UTC:** one wording fixed: our server's draft length was tested too (5 kept over 7, on 1 November), so the drafter note now says so.
 - **7 November 2026, 16:20 UTC:** the first table's last measuring row is in:
   - **Full quality on 2 cards with its drafter** took 330.5 s (2 draws), against 352.9 s without. That's no worse, maybe 5 to 10% better, inside the spread. So squeezing the model onto 2 cards costs about 9.5x ours, not 10x.
