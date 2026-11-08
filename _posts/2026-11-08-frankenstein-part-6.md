@@ -146,6 +146,8 @@ Artus asked what that result is worth. Two things: the speed, and the two cards 
 - **Cards only.** Our server leans on the rest of the workstation: the CPU computes the experts that don't fit on the cards, with 64 cores and 512 GB of RAM, which a 4-card machine may not need. We don't price the whole machine, its power or the work of building the Frankenstein. The editions differ too: Workstation cards at home, Server Edition cards on AWS.
 - **Not any two cards.** On AWS's own 2 cards, with a smaller CPU (2 × 11 cores of a 24-core Xeon for the experts) and diffbot's recipe as published, the same 3-bit pack needed 58.9 s per task, 1.6x the 4-card time. We haven't split how much of the gap down to our 34.8 s is the home hardware and how much is our parts.
 
+*Correction, 8 November:* a run we already had splits that gap, roughly. On our box, the same recipe as published needed about 40.5 s per task on 31 October (3 draws, on the client's clock), and our parts took it to 34.8 s. So most of the gap, about 18.4 s, likely comes with the hardware, and about 5.7 s with our parts. With 3 draws of the recipe, from 35.4 to 47.1 s, our parts' share isn't resolved: its 95% interval runs from our parts costing 8.7 s to saving 20.2 s. The recipe leaves the experts that don't fit on the cards to the CPU, and AWS's 2-card machine gives it 22 cores, against 56 of our 64. That the CPU and its memory are most of the hardware share is our inference: the cards are the same chip, but the machines differ in other ways too, and we haven't measured their parts one by one. [Where We Stand](/frankenstein/) has the details.
+
 ## What it costs in fidelity
 
 diffbot measured their pack against the original DeepSeek-V4.1-Flash-1017 and published the results with the pack. Below: the KL divergence from the original in nats (lower is better), and how often the most likely next token agrees with the original's.
@@ -179,3 +181,5 @@ For one person running one agent at a time, our 2-card workstation now keeps pac
 ## AI assistance
 
 AI agents (Claude and GPT models) ran the measurements quoted here and drafted this note, and an independent AI reviewer checked it against the receipts before publication. Artus asked for it and set its angle.
+
+*Corrected 8 November: the gap from diffbot's recipe on AWS down to our server is now split, roughly, into hardware and our parts, with the same recipe's run on our box (under "What two cards save").*
