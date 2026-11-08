@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 8 November 2026, 05:57 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 6](#the-story-so-far).*
+*Last updated: 8 November 2026, 06:07 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 6](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -113,6 +113,21 @@ Each point is one model on one setup. Across is its model time per task. Up is t
   - Qwen3.8 27B used Claude Code;
   - Qwen3.8 Flash Next used the better of Claude Code and mini-SWE-agent.
 
+### Would a bigger CPU help?
+
+Not much in decoding, on what we've measured. The figures below are rough ceilings, priors and screens, not measured savings.
+- **A rough ceiling of about 2 to 3 s per task in decoding.** That's what removing the cards' wait for the CPU entirely would save, if the profiled windows stand for whole tasks.
+  - **The wait:** in a profile of our test's own requests on one card, the card waited for the CPU's experts for 1.49 ms of a 15.6 ms step (9.5%), and 8.86% over four windows. Both were measured before a faster schedule for the CPU's work went in; since then it's about 7% (inferred, not measured). The profile splits a step's time into parts; it doesn't trace which part holds up the others.
+  - **In seconds:** each millisecond of step time is worth about 2.06 s per task, so that's about 2 to 3 s of our 34.8 s (6 to 9%).
+  - **Not in it:** the time before the first token, about 5.1 s per task. Part of it likely waits on the CPU too (our inference from profiles), but it isn't split yet.
+- **What an upgrade could buy.** A 96-core Threadripper PRO 9995WX, the CPU diffbot tested the recipe on, fits our motherboard and memory, so it would be a CPU swap. It adds cores; for bandwidth, diffbot's read 282 to 290 GB/s on its whole socket with slower memory, against about 270 GB/s across our two pools. Two EPYCs with faster memory would mean a new platform. Either way, in decoding it can buy at most that ceiling.
+- **AWS's 58.9 s is a different case.** There the recipe got 11 cores per card; ours gets 28. In a screen on 1 November, one more core in each of our core groups (8 cores that share a cache; 32 cores per card instead of 28) changed decoding time by 0.23%, nothing measurable. That setting also took away the core the CPU's coordinating thread had to itself, and a CPU with more core groups wasn't tested. That the recipe ran short on AWS's 11 cores is our inference.
+- **The recipe was tuned once to our cores.** diffbot tuned it on two pools of 42 cores; ours are 28. On 1 November we profiled the pools on our layout and screened their two top settings. The faster schedule cut decoding time per generated token by 4.1% in that screen (2 engine starts each), and time per verify step by 2.07% in the test that followed ([Part 1](/2026/11/02/frankenstein-part-1.html)). It's served since 1 November. Only those two settings were screened.
+- **Memory bandwidth isn't the whole limit either.** The CPU's jobs reached 55 to 61% of the bandwidth a plain read test gets from the same cores, under the old schedule; about 65% under today's (inferred). Those bytes are counted from the model's tensor sizes, not measured. Our reading: part of the wait is in the software.
+- **Cheaper levers are still open,** for our lead agent to rank:
+  - for the experts the CPU holds: more slots for them on the cards, a plan better matched to our traffic, or moving them in and out of the cards' cache as traffic changes. Together, a prior of 2.5 to 8 s per draw (about 0.4 to 1.3 s per task) from a model, not a measurement, estimated before [Part 3](/2026/11/04/frankenstein-part-3.html)'s plan went in and took part of it;
+  - faster software for the CPU's jobs, toward the bandwidth the memory delivers.
+
 ## The same model on other setups
 
 {::nomarkdown}
@@ -210,7 +225,7 @@ Notes:
 - **Hardware against our parts:** diffbot's recipe as published needs 58.9 s on AWS's 2 cards and about 40.5 s on ours, and our parts take it to 34.8 s. As estimates, about 18.4 s of that 24.1 s gap (76%) comes with the hardware and 5.7 s (24%) with our parts, 14% less than the recipe on our box.
   - **Our parts' share isn't resolved.** The recipe's 3 draws on our box took 47.1, 39.1 and 35.4 s per task. So the 95% interval for our parts' 5.7 s runs from our parts costing 8.7 s to saving 20.2 s, and for the hardware's 18.4 s from 5.4 to 31.4 s (Welch's t). More draws of the recipe on our box would settle it, and a rerun is queued.
   - **Thinking length:** the run on AWS, the run on our box and ours wrote 49.4K, 47.9K and 46.2K tokens a draw. Scaling each run's model time by its tokens gives 79% and 21%, close to the unscaled split. That's a rough correction, because reading the prompt doesn't scale with the tokens written.
-  - **Likely the CPU:** the recipe leaves the experts that don't fit on the cards to the CPU: 22 cores of a 24-core Xeon on AWS, against 56 of our 64 Zen 5 cores, each with its own memory. The cards are the same chip, but other things differ too: Server against Workstation Edition, error correction on at AWS, and a virtual machine on AWS. That the CPU and its memory are most of the hardware share is our inference; we haven't measured the machines' parts one by one.
+  - **Likely the CPU:** the recipe leaves the experts that don't fit on the cards to the CPU: 22 cores of a 24-core Xeon on AWS, against 56 of our 64 Zen 5 cores, each with its own memory. The cards are the same chip, but other things differ too: Server against Workstation Edition, error correction on at AWS, and a virtual machine on AWS. That the CPU and its memory are most of the hardware share is our inference; we haven't measured the machines' parts one by one. Whether a bigger CPU would help at home: [Would a bigger CPU help?](#would-a-bigger-cpu-help).
 - **What the drafter is worth:** on the 4-card setup, it cuts model time from 76.1 s to 36.4 s (2.1x). The two drafted runs differ by 6.4 s per task. The run with vLLM's default accepted fewer guesses per step (2.45 against 2.78), and its draws thought 12% longer. That the draft setting causes the gap is a hypothesis with 3 draws each, not a result. The draft length of 5 tokens matches our server; a short test of 3, 5 and 7 before the first drafted run found 3 and 5 tied.
 - **With the experts on the CPU, the drafter is worth little:** full quality on 2 cards took 330.5 s with it, against 352.9 s without (0.94x). Read that as no worse, maybe 5 to 10% better, not as a measured gain: the draws without it ranged from 306 to 377 s per task, and the two setups differ in more than the drafter (above). The CPU still computes most of the experts, and a drafter can't change that. Our reading, not measured: each guess the big model checks costs CPU work too.
 - **The 2-bit version writes slower as the context grows:** 77 tokens/s at 128,000 tokens in a short test, against 163 to 184 at 8,000 to 64,000.
@@ -290,6 +305,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **8 November 2026, 06:07 UTC:** a short note, [Would a bigger CPU help?](#would-a-bigger-cpu-help), under "Is it worth it?", at Artus's request. It adds no measurement: a rough ceiling of about 2 to 3 s per task in decoding for a faster CPU, what the screens of 1 November found, and the cheaper levers still open. No number elsewhere on this page changed.
 - **8 November 2026, 05:57 UTC:** three changes, at Artus's request:
   - **The gap from diffbot's recipe on AWS down to ours is split, roughly.** The same recipe on our box needed about 40.5 s (31 October, 3 draws, client clock). So most of the 24.1 s gap, about 18.4 s, likely comes with the hardware, and about 5.7 s with our parts, a share 3 draws don't resolve. That replaces "we haven't split it further" under "At a glance", and the notes under the first table give the intervals.
   - **New row and bar: diffbot's recipe as published, on our box,** at 40.5 s. The AWS run of the recipe is now labelled "on AWS". The same run's row in the progress table is dated 31 October (UTC), not 1 November, and shows its model time.
