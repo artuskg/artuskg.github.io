@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 8 November 2026, 06:11 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 6](#the-story-so-far).*
+*Last updated: 10 November 2026, 02:27 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 7](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -286,6 +286,7 @@ Everything above is single-user speed. How much a box can serve to many users at
 - [Part 4](/2026/11/06/frankenstein-part-4.html): our first own part, an exact top-k kernel for the attention indexer.
 - [Part 5](/2026/11/07/frankenstein-part-5.html): that kernel in served traffic, 0.31 ms faster per decoding step.
 - [Part 6](/2026/11/08/frankenstein-part-6.html): two cards about level with NVIDIA's FP4 on four, draw by draw, what the two cards cost and what our 3-bit weights cost in fidelity.
+- [Part 7](/2026/11/10/frankenstein-part-7.html): block verification for the drafter, which needed an upstream vLLM fix first; with the fix, tokens per verify step rose 1.36%, under the 2% bar we set before the run, so it's parked (decode 0.69% faster net).
 
 ## Credits
 
@@ -306,6 +307,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **10 November 2026, 02:27 UTC:** [Part 7](/2026/11/10/frankenstein-part-7.html) is linked under "The story so far". It tried block verification for the drafter, with vLLM #61161's fix, and parked it: tokens per verify step +1.36%, below the 2% bar set before the run (decode 0.69% faster net). Nothing in our server changed, so no row on this page moves.
 - **8 November 2026, 06:11 UTC:** the Qwen releases now have 3 runs each, not 1: two repeats from October with the same setup and grading join the first run. On the worth chart and in the Qwen table, Flash Next as released is 66.3 s of model time per task (runs 60.0 to 70.1 s; was 70.1 s from one run) and 74.1 s of task time (was 77.7). The 27B is 164.2 s (148.3 to 175.2; was 175.2) and 169.9 s of task time (was 181.3). The Qwen points are drawn as bars over their 3 runs.
 - **8 November 2026, 06:07 UTC:** a short note, [Would a bigger CPU help?](#would-a-bigger-cpu-help), under "Is it worth it?", at Artus's request. It adds no measurement: a rough ceiling of about 2 to 3 s per task in decoding for a faster CPU, what the screens of 1 November found, and the cheaper levers still open. No number elsewhere on this page changed.
 - **8 November 2026, 05:57 UTC:** three changes, at Artus's request:
