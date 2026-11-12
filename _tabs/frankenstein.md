@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 10 November 2026, 02:27 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 7](#the-story-so-far).*
+*Last updated: 12 November 2026, 02:43 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 8](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -32,7 +32,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
   Grading is mechanical: exact facts and line citations for the questions, hidden tests for the code. A *draw* is one pass over all 6 tasks.
 - **Model seconds per task** are the time the model spends reading and writing, on the server's own clock, averaged over the tasks. This is the number we rank by. Two older sources are on the client's clock and marked so: diffbot's recipe on our box and the Qwen runs.
 - **Task seconds per task** add the tools and the network, on the client's clock.
-- **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once-measuring).
+- **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once).
 - **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
 - **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. Short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. Ours kept 5 after a test against 7 on 1 November. diffbot's recipe as published and the 2-bit version used 5 without a test.
 - **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
@@ -220,7 +220,7 @@ The setups:
 - **DSpark 5** and **DSpark 3** are DeepSeek's DSpark drafter, guessing 5 or 3 tokens ahead.
 
 Notes:
-- **Single-user speed:** every row is one request at a time. How many users each setup serves at once is not measured yet ([Throughput](#throughput-several-users-at-once-measuring)).
+- **Single-user speed:** every row is one request at a time. How many users each setup serves at once is measured only for our own server so far ([Throughput](#throughput-several-users-at-once)).
 - **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards, and the 2-card ones on a smaller CPU. Our parts aren't on AWS, so diffbot's recipe as published is the AWS baseline. On the same AWS cards, the 4-card FP4 run takes 0.62x its time, the 2-bit run 2.55x, and full quality on 2 cards with its drafter 5.6x.
 - **Hardware against our parts:** diffbot's recipe as published needs 58.9 s on AWS's 2 cards and about 40.5 s on ours, and our parts take it to 34.8 s. As estimates, about 18.4 s of that 24.1 s gap (76%) comes with the hardware and 5.7 s (24%) with our parts, 14% less than the recipe on our box.
   - **Our parts' share isn't resolved.** The recipe's 3 draws on our box took 47.1, 39.1 and 35.4 s per task. So the 95% interval for our parts' 5.7 s runs from our parts costing 8.7 s to saving 20.2 s, and for the hardware's 18.4 s from 5.4 to 31.4 s (Welch's t). More draws of the recipe on our box would settle it, and a rerun is queued.
@@ -265,18 +265,22 @@ From our October campaign with Qwen3.8 models, on AWS's Server Edition cards.
 - **Our tuned stacks** run the models at lower precision than the releases, with our own kernels, among them SilentMountain's decoding kernel for Flash Next's experts. In October we checked them against the releases on our own tests (math questions, needles in long documents and this agent test), but they have no public scores of their own.
 - **A rerun of Flash Next on our home box** with the DeepSeek rows' settings is queued. It replaces this row when it lands.
 
-## Throughput: several users at once (measuring)
+## Throughput: several users at once
 
-Everything above is single-user speed. How much a box can serve to many users at once is a different question, and we have no concurrency numbers yet for either model. This section will show none until we measure them. What we know so far:
-- **Qwen3.8 Flash Next fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
+Everything above is single-user speed. How much a box serves to many users at once is a different question. Our first numbers are for the DeepSeek server, from a replay of agent sessions ([Part 8](/2026/11/12/frankenstein-part-8.html)):
+- **Aggregate output without the tier:** 442 tokens per second at 12 sessions and 122 at 16 (125 for the engine exactly as served). At 16, its two cards no longer hold the sessions' conversations (about 1.07 million tokens of KV cache), so it recomputes 98% of the prompt tokens in its turns.
+- **With a KV tier in host RAM** (vLLM's KV offloading): 542 at 12 sessions (1.23x) and 568 at 16 (4.65x). Against the engine exactly as served, a 37 GiB tier gave 569 against 125 at 16 sessions (4.55x). The tier isn't in our served setup yet.
+- These are output tokens per second on the server's counter, over a 30-minute window, on a replay whose lengths follow a load test of Artus's agent sessions, not live users. The 12-session gain is smaller than our pre-set bar for a clear gain (1.25x); the 16-session one is far outside the noise. Agent task time with many users isn't measured.
+
+For Qwen3.8 Flash Next, nothing is measured yet:
+- **It fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
 - **Each copy should also serve many users at once cheaply.** It uses only about 6 billion of its parameters per token, and its linear-attention layers (Gated DeltaNet) keep a fixed-size state per request. This is an expectation, not a measurement.
-- **Our DeepSeek setup needs both cards for one copy,** and the CPU computes its rarest experts, which likely limits how many users it can serve at once. This isn't measured either.
 
 ## Still measuring
 
 - diffbot's recipe as published, rerun on our box on the server's clock, with more draws.
 - Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings.
-- Throughput with several users at once, for both models.
+- Throughput with several users at once for Qwen3.8 Flash Next, and for DeepSeek between 1 and 12 sessions.
 
 ## The story so far
 
@@ -287,12 +291,13 @@ Everything above is single-user speed. How much a box can serve to many users at
 - [Part 5](/2026/11/07/frankenstein-part-5.html): that kernel in served traffic, 0.31 ms faster per decoding step.
 - [Part 6](/2026/11/08/frankenstein-part-6.html): two cards about level with NVIDIA's FP4 on four, draw by draw, what the two cards cost and what our 3-bit weights cost in fidelity.
 - [Part 7](/2026/11/10/frankenstein-part-7.html): block verification for the drafter, which needed an upstream vLLM fix first; with the fix, tokens per verify step rose 1.36%, under the 2% bar we set before the run, so it's parked (decode 0.69% faster net).
+- [Part 8](/2026/11/12/frankenstein-part-8.html): our first several-users result: at 16 agent sessions, a KV tier in host RAM gave 4.65x the aggregate output, because without it the cards recompute evicted conversations. Not served yet.
 
 ## Credits
 
 - **DeepSeek** for DeepSeek-V4.1-Flash-1017 and its DSpark drafter.
 - **NVIDIA** for the FP4 version.
-- **vLLM** for the engine of the 4-card runs and of our server.
+- **vLLM** for the engine of the 4-card runs and of our server, and **Or Ozeri** and **Yihua Cheng** for its KV offloading.
 - **diffbot** for the EXL3 3-bit pack and the serving recipe our server builds on, also run as published on AWS.
 - **turboderp** for EXL3, ExLlamaV3 and the 2.25-bit version.
 - **theroyallab** for TabbyAPI, which served the 2.25-bit version.
@@ -307,6 +312,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **12 November 2026, 02:43 UTC:** the Throughput section has its first numbers, for the DeepSeek server, from [Part 8](/2026/11/12/frankenstein-part-8.html). On a replay of agent sessions, our engine without the tier gives 442 output tokens per second at 12 sessions and 122 at 16. With a KV tier in host RAM, it gives 542 and 568 (1.23x and 4.65x), and against the engine exactly as served, a 37 GiB tier gave 4.55x at 16. The tier isn't served yet, so no single-user row moves. The section's old line that the CPU likely limits how many users DeepSeek can serve is gone: at 16 sessions the limit we measured was the cards' KV cache. Part 8 is linked under "The story so far".
 - **10 November 2026, 02:27 UTC:** [Part 7](/2026/11/10/frankenstein-part-7.html) is linked under "The story so far". It tried block verification for the drafter, with vLLM #61161's fix, and parked it: tokens per verify step +1.36%, below the 2% bar set before the run (decode 0.69% faster net). Nothing in our server changed, so no row on this page moves.
 - **8 November 2026, 06:11 UTC:** the Qwen releases now have 3 runs each, not 1: two repeats from October with the same setup and grading join the first run. On the worth chart and in the Qwen table, Flash Next as released is 66.3 s of model time per task (runs 60.0 to 70.1 s; was 70.1 s from one run) and 74.1 s of task time (was 77.7). The 27B is 164.2 s (148.3 to 175.2; was 175.2) and 169.9 s of task time (was 181.3). The Qwen points are drawn as bars over their 3 runs.
 - **8 November 2026, 06:07 UTC:** a short note, [Would a bigger CPU help?](#would-a-bigger-cpu-help), under "Is it worth it?", at Artus's request. It adds no measurement: a rough ceiling of about 2 to 3 s per task in decoding for a faster CPU, what the screens of 1 November found, and the cheaper levers still open. No number elsewhere on this page changed.
