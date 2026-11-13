@@ -95,7 +95,7 @@ Part 8's replay had fixed answer lengths and no grading. This time the sessions 
 {:/nomarkdown}
 
 | Sessions at once | Tasks per hour, with the tier | Tasks per hour, without it | |
-|---:|---:|---:|---:|
+|---|---:|---:|---:|
 | 1 | 102.6 | 91.3 | +12% |
 | 2 | 156.5 | 123.9 | +26% |
 | 3 to 6, second run | | 3: 166.1 · 4: 171.9 untraced · 5: 157.8 · 6: 170.1 | |
