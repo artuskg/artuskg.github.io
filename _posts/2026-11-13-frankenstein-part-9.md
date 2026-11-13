@@ -1,6 +1,6 @@
 ---
 title: 'The Frankenstein, Part 9: The RAM KV Tier Is Served, 2.4x the Agent Tasks per Hour at 8 Sessions'
-description: 'Part 9 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. The KV tier in host RAM from Part 8 is now in our served setup. On our agent test with 8 sessions at once, the server finished 208 graded tasks per hour with it, against 87 without, and time to first token, summed over each task's requests, fell from 74 s to 13 s. Without the tier, throughput plateaued at 3 to 6 sessions and halved at 8; with it, it keeps rising to 8 and holds at 16. Pass rates are within sampling noise.'
+description: 'Part 9 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. The KV tier in host RAM from Part 8 is now in our served setup. On our agent test with 8 sessions at once, the server finished 208 graded tasks per hour with it, against 87 without, and time to first token, summed over the requests of each task, fell from 74 s to 13 s. Without the tier, throughput plateaued at 3 to 6 sessions and halved at 8; with it, it keeps rising to 8 and holds at 16. Pass rates are within sampling noise.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, cuda, blackwell, kv-cache]
 ---
