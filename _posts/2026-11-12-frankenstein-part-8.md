@@ -7,6 +7,8 @@ tags: [deepseek, vllm, gpu, cuda, blackwell, kv-cache]
 
 *12 November 2026. A progress note from a running campaign, following [Part 7](/2026/11/10/frankenstein-part-7.html). This one is about several users at once, not single-user speed. Not a peer-reviewed paper.*
 
+*Update, 13 November 2026: the tier is now in our served setup, and on our graded agent test it gives 2.4x the tasks per hour at 8 sessions. See [Part 9](/2026/11/13/frankenstein-part-9.html).*
+
 Part 8 of our Frankenstein: in a replay of 16 agent sessions, our 2× RTX PRO 6000 DeepSeek-V4.1-Flash server ran out of KV cache and recomputed 98% of its prompt tokens.
 
 A KV tier in host RAM (vLLM's offloading) took aggregate output from 122 to 568 tok/s: 4.65x.

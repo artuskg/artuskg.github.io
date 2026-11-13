@@ -5,7 +5,7 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 12 November 2026, 02:43 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 8](#the-story-so-far).*
+*Last updated: 13 November 2026, 02:39 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 9](#the-story-so-far).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
 - How fast is it, against the same model on other setups?
@@ -22,6 +22,7 @@ We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on t
 - **Squeezing the full-quality model onto 2 cards costs about 9.5x:** 330.5 s with its drafter (352.9 s without), because the CPU has to compute most of the model. A 2-bit version small enough to fit entirely on 2 cards needed 150.2 s on ExLlamaV3's own server, because diffbot's engine couldn't load it; its drafter wasn't tuned.
 - **Since our first version, we're about 2x faster,** from 82.6 s to 39.0 s per task. The first figures come from an older version of the test.
 - **Quality:** our 3-bit version has no public benchmark score of its own. On our small test, it passed 83% of tasks. The other setups passed 78% to 94%, on too few tasks to rank them.
+- **With several agent sessions at once,** our server now keeps a KV tier in host RAM (since 12 November). With 8 sessions on our agent test it finishes 208 graded tasks per hour, against 87 without the tier (2.4x). See [Throughput](#throughput-several-users-at-once).
 
 ## How we measure
 
@@ -267,10 +268,25 @@ From our October campaign with Qwen3.8 models, on AWS's Server Edition cards.
 
 ## Throughput: several users at once
 
-Everything above is single-user speed. How much a box serves to many users at once is a different question. Our first numbers are for the DeepSeek server, from a replay of agent sessions ([Part 8](/2026/11/12/frankenstein-part-8.html)):
+Everything above is single-user speed. How much a box serves to many users at once is a different question.
+
+**Agent tasks per hour, DeepSeek server** ([Part 9](/2026/11/13/frankenstein-part-9.html)). Since 12 November, 17:56 UTC, our server keeps a 37 GiB KV tier in host RAM (vLLM's KV offloading, about 6 million tokens) behind the 1.07 million tokens of KV cache on its cards. On our 6-task agent test, with every session starting together, graded tasks finished per hour for the whole server:
+
+| Sessions at once | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| With the tier (served) | 102.6 | 156.5 | 171.9 | **208.4** | 219.5 |
+| Without it | 91.3 | 123.9 | 185.3 | **87.2** | not run |
+
+- **Without the tier, 8 sessions did fewer tasks per hour than 2.** A second run without it sat on a plateau of 158 to 172 tasks per hour from 3 to 6 sessions. The test's prompts average about 140,000 tokens, so six conversations need about 0.8 million tokens of KV cache and eight about 1.1 million, more than the cards hold (our reading).
+- **With it, 8 sessions do 2.4x as much,** and time to first token, summed over each task's requests, falls from 74 s to 13 s. At 16 the server saturates at its cap of 8 requests running at once: 5% more than at 8, at about 2 minutes of waiting in the queue per task.
+- **Each session is slower with company:** at 8 sessions, about 125 s of model time per task, against 31 s alone.
+- **Pass rates are within sampling noise:** 73 of 90 tasks with the tier and 77 of 90 without, at the counts both ran. They missed the quality bar we had set beforehand for replacing the served setup (6 of 6 at 1 session, 38 of 48 at 8; the tier got 4 of 6 and 37 of 48).
+- These are tasks per hour on the wall clock, tools included, from one run with the tier (one draw per session per count) and two without it, on 12 and 13 November. The single-user rows above were measured before the tier; at 1 session it was level with the setup without it (one draw), so they stand.
+
+**Output tokens per second, DeepSeek server** ([Part 8](/2026/11/12/frankenstein-part-8.html)), from a replay of agent sessions:
 - **Aggregate output without the tier:** 442 tokens per second at 12 sessions and 122 at 16 (125 for the engine exactly as served). At 16, its two cards no longer hold the sessions' conversations (about 1.07 million tokens of KV cache), so it recomputes 98% of the prompt tokens in its turns.
-- **With a KV tier in host RAM** (vLLM's KV offloading): 542 at 12 sessions (1.23x) and 568 at 16 (4.65x). Against the engine exactly as served, a 37 GiB tier gave 569 against 125 at 16 sessions (4.55x). The tier isn't in our served setup yet.
-- These are output tokens per second on the server's counter, over a 30-minute window, on a replay whose lengths follow a load test of Artus's agent sessions, not live users. The 12-session gain is smaller than our pre-set bar for a clear gain (1.25x); the 16-session one is far outside the noise. Agent task time with many users isn't measured.
+- **With a KV tier in host RAM** (vLLM's KV offloading): 542 at 12 sessions (1.23x) and 568 at 16 (4.65x). Against the engine as served then, a 37 GiB tier gave 569 against 125 at 16 sessions (4.55x). That tier is what we serve now.
+- These are output tokens per second on the server's counter, over a 30-minute window, on a replay whose lengths follow a load test of Artus's agent sessions, not live users. The 12-session gain is smaller than our pre-set bar for a clear gain (1.25x); the 16-session one is far outside the noise.
 
 For Qwen3.8 Flash Next, nothing is measured yet:
 - **It fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
@@ -280,7 +296,7 @@ For Qwen3.8 Flash Next, nothing is measured yet:
 
 - diffbot's recipe as published, rerun on our box on the server's clock, with more draws.
 - Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings.
-- Throughput with several users at once for Qwen3.8 Flash Next, and for DeepSeek between 1 and 12 sessions.
+- Throughput with several users at once for Qwen3.8 Flash Next, and for DeepSeek at 3 to 6 and 9 to 15 sessions with the tier.
 
 ## The story so far
 
@@ -292,6 +308,7 @@ For Qwen3.8 Flash Next, nothing is measured yet:
 - [Part 6](/2026/11/08/frankenstein-part-6.html): two cards about level with NVIDIA's FP4 on four, draw by draw, what the two cards cost and what our 3-bit weights cost in fidelity.
 - [Part 7](/2026/11/10/frankenstein-part-7.html): block verification for the drafter, which needed an upstream vLLM fix first; with the fix, tokens per verify step rose 1.36%, under the 2% bar we set before the run, so it's parked (decode 0.69% faster net).
 - [Part 8](/2026/11/12/frankenstein-part-8.html): our first several-users result: at 16 agent sessions, a KV tier in host RAM gave 4.65x the aggregate output, because without it the cards recompute evicted conversations. Not served yet.
+- [Part 9](/2026/11/13/frankenstein-part-9.html): that tier, now served: with 8 agent sessions at once, 2.4x the graded tasks per hour (208 against 87), where the server without it fell off a cliff.
 
 ## Credits
 
@@ -312,6 +329,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **13 November 2026, 02:39 UTC:** the KV tier in host RAM is now in our served setup, since 12 November, 17:56 UTC. The Throughput section leads with [Part 9](/2026/11/13/frankenstein-part-9.html)'s agent tasks per hour at 1 to 16 sessions: 208 against 87 at 8 sessions (2.4x). At a glance has a line for it. Part 8's line that the tier isn't served is updated, "Still measuring" now names the DeepSeek counts not yet run with the tier, and Part 9 is linked under "The story so far". No single-user row moves.
 - **12 November 2026, 02:43 UTC:** the Throughput section has its first numbers, for the DeepSeek server, from [Part 8](/2026/11/12/frankenstein-part-8.html). On a replay of agent sessions, our engine without the tier gives 442 output tokens per second at 12 sessions and 122 at 16. With a KV tier in host RAM, it gives 542 and 568 (1.23x and 4.65x), and against the engine exactly as served, a 37 GiB tier gave 4.55x at 16. The tier isn't served yet, so no single-user row moves. The section's old line that the CPU likely limits how many users DeepSeek can serve is gone: at 16 sessions the limit we measured was the cards' KV cache. Part 8 is linked under "The story so far".
 - **10 November 2026, 02:27 UTC:** [Part 7](/2026/11/10/frankenstein-part-7.html) is linked under "The story so far". It tried block verification for the drafter, with vLLM #61161's fix, and parked it: tokens per verify step +1.36%, below the 2% bar set before the run (decode 0.69% faster net). Nothing in our server changed, so no row on this page moves.
 - **8 November 2026, 06:11 UTC:** the Qwen releases now have 3 runs each, not 1: two repeats from October with the same setup and grading join the first run. On the worth chart and in the Qwen table, Flash Next as released is 66.3 s of model time per task (runs 60.0 to 70.1 s; was 70.1 s from one run) and 74.1 s of task time (was 77.7). The 27B is 164.2 s (148.3 to 175.2; was 175.2) and 169.9 s of task time (was 181.3). The Qwen points are drawn as bars over their 3 runs.
