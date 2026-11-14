@@ -5,131 +5,70 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 14 November 2026, 02:15 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 10](#the-story-so-far).*
+*Last updated: 14 November 2026, 14:39 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 10](#the-story-so-far); on X, the story so far is in [one thread](https://x.com/artuskg/status/2121608918669668594).*
 
-We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. This page answers four questions in one place:
-- How fast is it, against the same model on other setups?
-- How much faster has it become since our first version?
-- What do other models do on the same kind of cards?
-- Is the speed worth it?
+We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. Before it, we tuned two Qwen3.8 models on the same kind of cards ([X thread, 28 October](https://x.com/artuskg/status/2115339268273127511)); they're [compared below](#other-models-on-the-same-kind-of-cards).
 
 ## At a glance
 
-- **Our 2-card server needs 34.8 s of model time per task** on our agent test, or 39.0 s with tools included.
-- **NVIDIA's full-quality version on 4 cards needs 36.4 s,** with its drafter set the same way as ours. The two are **about level.** Ours takes about 4.5% less model time, which is less than the spread between single draws. So our 3-bit Frankenstein gets 4-card full-quality speed from half the cards. The price is quality that hasn't been measured on public benchmarks yet.
+- **One user at a time:** our 2-card server needs **34.8 s of model time per task** on our agent test (39.0 s with tools), about level with NVIDIA's full-quality FP4 version on 4 server cards (36.4 s). Measured on 5 November; [details](#the-same-model-on-other-setups).
+- **Several users at once:** with a KV tier in host RAM, served since 12 November, 8 agent sessions finish **208 graded tasks per hour, against 87 without it (2.4x)**, and write 440 output tokens per second. [Details](#throughput-several-users-at-once).
+- **About 2x faster than our first version** of 31 October: 82.6 s down to 39.0 s per task, tools included. The first figure comes from an older version of the test.
+- **The drafter,** DeepSeek's DSpark guessing 5 tokens ahead, cuts model time per task 2.3x for one user and adds 34% output at 8 sessions.
+- **The caveat:** our 3-bit version has no public benchmark score of its own. On our small test, it passed 83% of tasks. The other setups passed 78% to 94%, on too few tasks to rank them.
+
+## The story so far
+
+One line per part; each part is a dated note and stays as it was published. On X, the whole story is in [one thread](https://x.com/artuskg/status/2121608918669668594).
+
+- [Part 1](/2026/11/02/frankenstein-part-1.html): the body, vLLM with diffbot's 3-bit pack in place of llama.cpp, and a faster schedule for the experts the CPU computes.
+- [Part 2](/2026/11/03/frankenstein-part-2.html): a part from another fork, vLLM-Moet's overlap for these cards, and a cache for repeated prompts.
+- [Part 3](/2026/11/04/frankenstein-part-3.html): a plan for which experts the CPU computes, made from our own agent traffic, and a newer vLLM base we turned down.
+- [Part 4](/2026/11/06/frankenstein-part-4.html): our first own part, an exact top-k kernel for the attention indexer.
+- [Part 5](/2026/11/07/frankenstein-part-5.html): that kernel in served traffic, 0.31 ms faster per decoding step.
+- [Part 6](/2026/11/08/frankenstein-part-6.html): two cards about level with NVIDIA's FP4 on four, draw by draw, what the two cards cost and what our 3-bit weights cost in fidelity.
+- [Part 7](/2026/11/10/frankenstein-part-7.html): block verification for the drafter, which needed an upstream vLLM fix first; with the fix, tokens per verify step rose 1.36%, under the 2% bar we set before the run, so it's parked (decode 0.69% faster net).
+- [Part 8](/2026/11/12/frankenstein-part-8.html): our first several-users result: at 16 agent sessions, a KV tier in host RAM gave 4.65x the aggregate output, because without it the cards recompute evicted conversations (served since Part 9).
+- [Part 9](/2026/11/13/frankenstein-part-9.html): that tier, now served: with 8 agent sessions at once, 2.4x the graded tasks per hour (208 against 87), where the server without it fell off a cliff.
+- [Part 10](/2026/11/14/frankenstein-part-10.html): what the drafter is worth with 8 sessions at once (34% more output; 2.3x alone), why we keep it at 5 tokens ahead, and a vLLM cache change that had nothing left to fix once the tier was in.
+
+## Throughput: several users at once
+
+How much a box serves to many users at once is a different question from single-user speed, which the sections after this one measure.
+
+**Agent tasks per hour, DeepSeek server** ([Part 9](/2026/11/13/frankenstein-part-9.html)). Since 12 November, 17:56 UTC, our server keeps a 37 GiB KV tier in host RAM (vLLM's KV offloading, about 6 million tokens) behind the 1.07 million tokens of KV cache on its cards. On our 6-task agent test, with every session starting together, graded tasks finished per hour for the whole server:
+
+| Sessions at once | 1 | 2 | 4 | 8 | 16 |
+|---|---:|---:|---:|---:|---:|
+| With the tier (served) | 102.6 | 156.5 | 171.9 | **208.4** | 219.5 |
+| Without it | 91.3 | 123.9 | 185.3 | **87.2** | not run |
+
+- **Without the tier, 8 sessions did fewer tasks per hour than 2.** A second run without it sat on a plateau of 158 to 172 tasks per hour from 3 to 6 sessions. The test's prompts average about 140,000 tokens, so six conversations need about 0.8 million tokens of KV cache and eight about 1.1 million, more than the cards hold (our reading).
+- **With it, 8 sessions do 2.4x as much,** and time to first token, summed over each task's requests, falls from 74 s to 13 s. At 16 the server saturates at its cap of 8 requests running at once: 5% more than at 8, at about 2 minutes of waiting in the queue per task.
+- **Each session is slower with company:** at 8 sessions, about 125 s of model time per task, against 31 s alone.
+- **Pass rates are within sampling noise:** 73 of 90 tasks with the tier and 77 of 90 without, at the counts both ran. They missed the quality bar we had set beforehand for replacing the served setup (6 of 6 at 1 session, 38 of 48 at 8; the tier got 4 of 6 and 37 of 48).
+- These are tasks per hour on the wall clock, tools included, from one run with the tier (one draw per session per count) and two without it, on 12 and 13 November. The single-user rows below were measured before the tier; at 1 session it was level with the setup without it (one draw), so they stand.
+
+**What the drafter is worth with 8 sessions** ([Part 10](/2026/11/14/frankenstein-part-10.html)). On the served setup with the tier, 8 sessions at once wrote 440 output tokens per second with DSpark guessing 5 ahead, against 328 without a drafter (+34%), and finished 211 against 159 graded tasks per hour. Guessing 3 ahead gave 3.5% more output than 5 and guessing 2 ahead 0.9% more, both under the 5% bar we had set beforehand; for a single session, 3 ahead was level and 2 ahead 34% slower. So 5 stays. One engine start per setting, on 13 November.
+
+**Tried with the tier, not adopted** ([Part 10](/2026/11/14/frankenstein-part-10.html)): a change to how vLLM frees a finished conversation's cache across this model's kinds of attention layers. It targeted the prefix-cache collapse at 8 sessions without the tier (60.7% of prompt tokens found in the cache); with the tier alone, 94.8% are found already. On top of the tier it tied: 212 against 208 tasks per hour at 8 sessions, 219 against 220 at 16.
+
+**Output tokens per second, DeepSeek server** ([Part 8](/2026/11/12/frankenstein-part-8.html)), from a replay of agent sessions:
+- **Aggregate output without the tier:** 442 tokens per second at 12 sessions and 122 at 16 (125 for the engine exactly as served). At 16, its two cards no longer hold the sessions' conversations (about 1.07 million tokens of KV cache), so it recomputes 98% of the prompt tokens in its turns.
+- **With a KV tier in host RAM** (vLLM's KV offloading): 542 at 12 sessions (1.23x) and 568 at 16 (4.65x). Against the engine as served then, a 37 GiB tier gave 569 against 125 at 16 sessions (4.55x). That tier is what we serve now.
+- These are output tokens per second on the server's counter, over a 30-minute window, on a replay whose lengths follow a load test of Artus's agent sessions, not live users. The 12-session gain is smaller than our pre-set bar for a clear gain (1.25x); the 16-session one is far outside the noise.
+
+For Qwen3.8 Flash Next, nothing is measured yet:
+- **It fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
+- **Each copy should also serve many users at once cheaply.** It uses only about 6 billion of its parameters per token, and its linear-attention layers (Gated DeltaNet) keep a fixed-size state per request. This is an expectation, not a measurement.
+
+## The same model on other setups
+
+In short:
+- **Ours needs 34.8 s, and NVIDIA's full-quality version on 4 cards 36.4 s,** with its drafter set the same way as ours. The two are **about level.** Ours takes about 4.5% less model time, which is less than the spread between single draws. So our 3-bit Frankenstein gets 4-card full-quality speed from half the cards. The price is quality that hasn't been measured on public benchmarks yet.
 - **A second 4-card run, with vLLM's default draft setting, needed 42.8 s.** It accepted fewer of the drafter's guesses and thought longer. Whether the setting explains the gap isn't settled with 3 draws each.
 - **On AWS's own 2 cards, diffbot's recipe as published needs 58.9 s.** That's the same 3-bit pack, without our parts. The recipe leaves the experts that don't fit on the cards to the CPU, and AWS's 2-card machine gives it 22 cores, against 56 of our 64. On our box, the same recipe needed about 40.5 s (3 draws, on the client's clock), and our parts took it to 34.8 s. So most of the gap, about 18.4 s, likely comes with the hardware, and about 5.7 s with our parts. But the recipe's 3 draws on our box ranged from 35.4 to 47.1 s, so our parts' share isn't resolved. That the CPU and its memory are most of the hardware share is our inference, not measured.
 - **Squeezing the full-quality model onto 2 cards costs about 9.5x:** 330.5 s with its drafter (352.9 s without), because the CPU has to compute most of the model. A 2-bit version small enough to fit entirely on 2 cards needed 150.2 s on ExLlamaV3's own server, because diffbot's engine couldn't load it; its drafter wasn't tuned.
-- **Since our first version, we're about 2x faster,** from 82.6 s to 39.0 s per task. The first figures come from an older version of the test.
-- **Quality:** our 3-bit version has no public benchmark score of its own. On our small test, it passed 83% of tasks. The other setups passed 78% to 94%, on too few tasks to rank them.
-- **With several agent sessions at once,** our server now keeps a KV tier in host RAM (since 12 November). With 8 sessions on our agent test it finishes 208 graded tasks per hour, against 87 without the tier (2.4x). See [Throughput](#throughput-several-users-at-once).
-
-## How we measure
-
-- **The test** is our 6-task agent test:
-  - two questions about a document of 128,000 or 200,000 tokens;
-  - four coding tasks in a code base, with tools to search, read and write files and to run tests.
-
-  Grading is mechanical: exact facts and line citations for the questions, hidden tests for the code. A *draw* is one pass over all 6 tasks.
-- **Model seconds per task** are the time the model spends reading and writing, on the server's own clock, averaged over the tasks. This is the number we rank by. Two older sources are on the client's clock and marked so: diffbot's recipe on our box and the Qwen runs.
-- **Task seconds per task** add the tools and the network, on the client's clock.
-- **Single-user speed:** every number on this page is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once).
-- **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
-- **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. Short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. Ours kept 5 after a test against 7 on 1 November, and against 3, 2 and none with 8 sessions at once on 13 November ([Part 10](/2026/11/14/frankenstein-part-10.html)). diffbot's recipe as published and the 2-bit version used 5 without a test.
-- **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
-
-## Is it worth it?
-
-{::nomarkdown}
-<link rel="stylesheet" href="/assets/posts/qwen3-8-rtx-pro-6000/charts.css">
-<div class="brrr"><section class="card" id="c-worth-it">
-<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Scatter plot of seconds per task, on a log scale, against each maker's DeepSWE v1.1 score. DeepSeek-V4.1-Flash-1017 at 77.0: ours, 3-bit on 2 cards, 34.8 s, drawn hollow because 77.0 is the full model's score; NVIDIA's FP4 on 4 cards 36.4 s; a 2-bit version on 2 cards 150.2 s, drafter not tuned, hollow; full quality on 2 cards with its drafter 330.5 s. Qwen3.8 Flash Next at 58.7: 66.3 s as released, 42.2 s on our tuned stack, each the mean of 3 runs. Qwen3.8 27B at 42.2: 164.2 s as released, mean of 3 runs, and 134.2 to 139.1 s tuned. Tuned points are hollow too. Every point is model time; the Qwen points on the client's clock, with greedy decoding; each Qwen bar spans its 3 runs.">
-<rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
-<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Is it worth it? Model time per task against a public coding score</text>
-<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSWE v1.1 as each maker reports it · model seconds per task on our 6-task agent test, one request at a time · up and left is better</text>
-<circle cx="68" cy="112" r="7" style="fill:var(--s1,#2a78d6)"/>
-<text x="82.0" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017, other setups</text>
-<circle cx="412.8" cy="112" r="7" style="fill:none;stroke:var(--s2,#eb6834);stroke-width:3"/>
-<text x="426.8" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Ours, 3-bit</text>
-<circle cx="552.4" cy="112" r="7" style="fill:var(--s3,#1baf7a)"/>
-<text x="566.4" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Qwen3.8</text>
-<circle cx="661.5999999999999" cy="112" r="7" style="fill:none;stroke:var(--muted,#898781);stroke-width:3"/>
-<text x="675.6" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Hollow: no score of its own</text>
-<line x1="110" x2="1120" y1="489.5" y2="489.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="98.0" y="494.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">40</text>
-<line x1="110" x2="1120" y1="418.5" y2="418.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="98.0" y="423.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">50</text>
-<line x1="110" x2="1120" y1="347.5" y2="347.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="98.0" y="352.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">60</text>
-<line x1="110" x2="1120" y1="276.5" y2="276.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="98.0" y="281.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">70</text>
-<line x1="110" x2="1120" y1="205.5" y2="205.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="98.0" y="210.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">80</text>
-<line x1="171.5" x2="171.5" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="171.5" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">30 s</text>
-<line x1="343.7" x2="343.7" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="343.7" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">50 s</text>
-<line x1="577.4" x2="577.4" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="577.4" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">100 s</text>
-<line x1="811.1" x2="811.1" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="811.1" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">200 s</text>
-<line x1="1044.8" x2="1044.8" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
-<text x="1044.8" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">400 s</text>
-<text x="1120.0" y="569.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">model seconds per task (log scale)</text>
-<text x="60.0" y="152.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">DeepSWE v1.1 score</text>
-<g><title>Full quality on 2 cards (AWS), with its DSpark drafter: 330.5 s model time per task, 2 draws (352.9 s without the drafter) · DeepSWE 77.0</title><circle cx="980.4" cy="226.8" r="15" style="fill:transparent"/><circle cx="980.4" cy="226.8" r="9" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
-<g><title>2-bit version, all on 2 cards (AWS, TabbyAPI + ExLlamaV3), drafter not tuned: 150.2 s model time per task · 77.0 is the full model's score, an upper bound here</title><circle cx="714.5" cy="226.8" r="15" style="fill:transparent"/><circle cx="714.5" cy="226.8" r="9" style="fill:var(--surface,#fcfcfb);stroke:var(--s1,#2a78d6);stroke-width:3"/></g>
-<g><title>NVIDIA's FP4 on 4 cards (AWS), draft setting as ours: 36.4 s model time per task · DeepSWE 77.0</title><circle cx="236.9" cy="226.8" r="14" style="fill:transparent"/><circle cx="236.9" cy="226.8" r="8" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
-<g><title>Ours, 3-bit on 2 cards: 34.8 s model time per task · 77.0 is the full model's score, an upper bound for ours</title><circle cx="221.3" cy="226.8" r="14" style="fill:transparent"/><circle cx="221.3" cy="226.8" r="8" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:3"/></g>
-<line x1="439.0" x2="294.4" y1="378.7" y2="378.7" style="stroke:var(--muted,#898781);stroke-width:1.5"/><path d="M286.4 378.7 l8 -5 v10 Z" style="fill:var(--muted,#898781)"/>
-<g><title>Qwen3.8 Flash Next as released (FP8), 2 cards (AWS): 66.3 s model time per task (client clock, greedy), mean of 3 runs (60.0 to 70.1) · DeepSWE 58.7</title><rect x="389.9" y="341.7" width="82.6" height="30" style="fill:transparent"/><line x1="404.9" x2="457.5" y1="356.7" y2="356.7" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/></g>
-<g><title>Qwen3.8 Flash Next on our tuned stack, 2 cards (AWS): 42.2 s model time per task (client clock, greedy), mean of 3 runs (39.5 to 46.4) · 58.7 is the release's score, an upper bound here</title><rect x="249.0" y="341.7" width="84.7" height="30" style="fill:transparent"/><line x1="264.0" x2="318.7" y1="356.7" y2="356.7" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/><line x1="264.0" x2="318.7" y1="356.7" y2="356.7" style="stroke:var(--surface,#fcfcfb);stroke-width:11;stroke-linecap:round"/></g>
-<line x1="744.6" x2="689.9" y1="495.9" y2="495.9" style="stroke:var(--muted,#898781);stroke-width:1.5"/><path d="M681.9 495.9 l8 -5 v10 Z" style="fill:var(--muted,#898781)"/>
-<g><title>Qwen3.8 27B as released (FP8), 1 card (AWS): 164.2 s model time per task (client clock, greedy), mean of 3 runs (148.3 to 175.2) · DeepSWE 42.2</title><rect x="695.1" y="458.9" width="86.2" height="30" style="fill:transparent"/><line x1="710.1" x2="766.4" y1="473.9" y2="473.9" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/></g>
-<g><title>Qwen3.8 27B on our tuned stacks, 1 card (AWS): 134.2 to 139.1 s model time per task (client clock, greedy), three runs on two stacks · 42.2 is the release's score, an upper bound here</title><rect x="661.5" y="458.9" width="42.1" height="30" style="fill:transparent"/><line x1="676.5" x2="688.5" y1="473.9" y2="473.9" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/><line x1="676.5" x2="688.5" y1="473.9" y2="473.9" style="stroke:var(--surface,#fcfcfb);stroke-width:11;stroke-linecap:round"/></g>
-<text x="209.3" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Ours, 3-bit, 2 cards: 34.8 s</text>
-<text x="224.9" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">NVIDIA's FP4, 4 cards: 36.4 s</text>
-<text x="714.5" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="middle">2-bit, all on 2 cards: 150.2 s</text>
-<text x="714.5" y="280.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">drafter not tuned</text>
-<text x="980.4" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">Full quality, 2 cards, with its drafter: 330.5 s</text>
-<text x="254.0" y="334.7" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 Flash Next, 2 cards: 66.3 s as released, 42.2 s tuned (n = 3 each)</text>
-<text x="506.5" y="451.9" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 27B, 1 card: 164.2 s as released (n = 3), 134.2-139.1 s tuned (3 runs)</text>
-<text x="60.0" y="617.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">All model time. DeepSeek: server clock, temperature 1.0, with drafters. Qwen: client clock, greedy decoding (changes thinking length), bars span 3 runs.</text>
-<text x="60.0" y="635.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">Hollow: lower-precision weights with no score of their own, so the release's score is an upper bound. NVIDIA's FP4 has its own, within 0.7 points of the original.</text>
-<text x="60.0" y="653.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">The makers ran DeepSWE in different harnesses. Ours runs on Workstation Edition cards at home, the other points on AWS's Server Edition.</text>
-</svg>
-</section></div>
-{:/nomarkdown}
-
-Each point is one model on one setup. Across is its model time per task. Up is the score its maker reports on DeepSWE v1.1, a public benchmark of agentic coding. Up and to the left is better. DeepSWE v1.1 is the one score that all three makers report. Each Qwen bar spans its 3 runs, and the arrows go from a Qwen release to our tuned stack for it.
-- **Time:** every point is model time per task. DeepSeek's points are on the server's clock. The Qwen points are on the client's clock, from the October runs' request records: each request from its start to its last streamed token, summed. For our server, the two clocks differ by 0.1 s per task; we haven't checked that for the Qwen runs' engine. The Qwen runs used greedy decoding (temperature 0) and the DeepSeek runs temperature 1.0, which changes how long a model thinks.
-- **Hollow points have no score of their own.** Their weights are at lower precision than the release the score is for, so that score is an upper bound for them:
-  - our 3-bit version, under DeepSeek's 77.0 for the full model;
-  - the Qwen models on our tuned stacks, which run lower-precision weights than Qwen's releases;
-  - the 2-bit version that fits on 2 cards. turboderp reports 90.4% on GPQA Diamond for it, against 90.2% for the original (a figure turboderp took from OpenRouter), but it has no DeepSWE score.
-
-  NVIDIA's FP4 version is drawn solid because NVIDIA reports its own scores, within 0.7 points of the original on six benchmarks. Every DeepSeek point on the chart has its drafter, and NVIDIA's 4-card run is the one with the same draft setting as ours.
-- **Harnesses:** the makers ran DeepSWE in different harnesses:
-  - DeepSeek used Mini-SWE-V2;
-  - Qwen3.8 27B used Claude Code;
-  - Qwen3.8 Flash Next used the better of Claude Code and mini-SWE-agent.
-
-### Would a bigger CPU help?
-
-Not much in decoding, on what we've measured. The figures below are rough ceilings, priors and screens, not measured savings.
-- **A rough ceiling of about 2 to 3 s per task in decoding.** That's what removing the cards' wait for the CPU entirely would save, if the profiled windows stand for whole tasks.
-  - **The wait:** in a profile of our test's own requests on one card, the card waited for the CPU's experts for 1.49 ms of a 15.6 ms step (9.5%), and 8.86% over four windows. Both were measured before a faster schedule for the CPU's work went in; since then it's about 7% (inferred, not measured). The profile splits a step's time into parts; it doesn't trace which part holds up the others.
-  - **In seconds:** each millisecond of step time is worth about 2.06 s per task, so that's about 2 to 3 s of our 34.8 s (6 to 9%).
-  - **Not in it:** the time before the first token, about 5.1 s per task. Part of it likely waits on the CPU too (our inference from profiles), but it isn't split yet.
-- **What an upgrade could buy.** A 96-core Threadripper PRO 9995WX, the CPU diffbot tested the recipe on, fits our motherboard and memory, so it would be a CPU swap. It adds cores; for bandwidth, diffbot's read 282 to 290 GB/s on its whole socket with slower memory, against about 270 GB/s across our two pools. Two EPYCs with faster memory would mean a new platform. Either way, in decoding it can buy at most that ceiling.
-- **AWS's 58.9 s is a different case.** There the recipe got 11 cores per card; ours gets 28. In a screen on 1 November, one more core in each of our core groups (8 cores that share a cache; 32 cores per card instead of 28) changed decoding time by 0.23%, nothing measurable. That setting also took away the core the CPU's coordinating thread had to itself, and a CPU with more core groups wasn't tested. That the recipe ran short on AWS's 11 cores is our inference.
-- **The recipe was tuned once to our cores.** diffbot tuned it on two pools of 42 cores; ours are 28. On 1 November we profiled the pools on our layout and screened their two top settings. The faster schedule cut decoding time per generated token by 4.1% in that screen (2 engine starts each), and time per verify step by 2.07% in the test that followed ([Part 1](/2026/11/02/frankenstein-part-1.html)). It's served since 1 November. Only those two settings were screened.
-- **Memory bandwidth isn't the whole limit either.** The CPU's jobs reached 55 to 61% of the bandwidth a plain read test gets from the same cores, under the old schedule; about 65% under today's (inferred). Those bytes are counted from the model's tensor sizes, not measured. Our reading: part of the wait is in the software.
-- **Cheaper levers are still open,** for our lead agent to rank:
-  - for the experts the CPU holds: more slots for them on the cards, a plan better matched to our traffic, or moving them in and out of the cards' cache as traffic changes. Together, a prior of 2.5 to 8 s per draw (about 0.4 to 1.3 s per task) from a model, not a measurement, estimated before [Part 3](/2026/11/04/frankenstein-part-3.html)'s plan went in and took part of it;
-  - faster software for the CPU's jobs, toward the bandwidth the memory delivers.
-
-## The same model on other setups
 
 {::nomarkdown}
 <div class="brrr"><section class="card" id="c-same-model-setups">
@@ -224,7 +163,7 @@ Notes:
 - **Single-user speed:** every row is one request at a time. How many users each setup serves at once is measured only for our own server so far ([Throughput](#throughput-several-users-at-once)).
 - **Hardware differs.** Ours runs on Workstation Edition cards at home, capped at 500 W while the CPU is busy and at 600 W otherwise. The AWS rows run on Server Edition cards, and the 2-card ones on a smaller CPU. Our parts aren't on AWS, so diffbot's recipe as published is the AWS baseline. On the same AWS cards, the 4-card FP4 run takes 0.62x its time, the 2-bit run 2.55x, and full quality on 2 cards with its drafter 5.6x.
 - **Hardware against our parts:** diffbot's recipe as published needs 58.9 s on AWS's 2 cards and about 40.5 s on ours, and our parts take it to 34.8 s. As estimates, about 18.4 s of that 24.1 s gap (76%) comes with the hardware and 5.7 s (24%) with our parts, 14% less than the recipe on our box.
-  - **Our parts' share isn't resolved.** The recipe's 3 draws on our box took 47.1, 39.1 and 35.4 s per task. So the 95% interval for our parts' 5.7 s runs from our parts costing 8.7 s to saving 20.2 s, and for the hardware's 18.4 s from 5.4 to 31.4 s (Welch's t). More draws of the recipe on our box would settle it, and a rerun is queued.
+  - **Our parts' share isn't resolved.** The recipe's 3 draws on our box took 47.1, 39.1 and 35.4 s per task. So the 95% interval for our parts' 5.7 s runs from our parts costing 8.7 s to saving 20.2 s, and for the hardware's 18.4 s from 5.4 to 31.4 s (Welch's t). More draws of the recipe on our box would settle it; that rerun is not scheduled.
   - **Thinking length:** the run on AWS, the run on our box and ours wrote 49.4K, 47.9K and 46.2K tokens a draw. Scaling each run's model time by its tokens gives 79% and 21%, close to the unscaled split. That's a rough correction, because reading the prompt doesn't scale with the tokens written.
   - **Likely the CPU:** the recipe leaves the experts that don't fit on the cards to the CPU: 22 cores of a 24-core Xeon on AWS, against 56 of our 64 Zen 5 cores, each with its own memory. The cards are the same chip, but other things differ too: Server against Workstation Edition, error correction on at AWS, and a virtual machine on AWS. That the CPU and its memory are most of the hardware share is our inference; we haven't measured the machines' parts one by one. Whether a bigger CPU would help at home: [Would a bigger CPU help?](#would-a-bigger-cpu-help).
 - **What the drafter is worth:** on the 4-card setup, it cuts model time from 76.1 s to 36.4 s (2.1x). The two drafted runs differ by 6.4 s per task. The run with vLLM's default accepted fewer guesses per step (2.45 against 2.78), and its draws thought 12% longer. That the draft setting causes the gap is a hypothesis with 3 draws each, not a result. The draft length of 5 tokens matches our server; a short test of 3, 5 and 7 before the first drafted run found 3 and 5 tied. On our own server it is worth 2.3x at 1 session (32.5 against 73.8 s of model time per task, one step each) and 34% more output with 8 sessions at once ([Part 10](/2026/11/14/frankenstein-part-10.html)).
@@ -247,8 +186,84 @@ Notes:
 
 - **About 2x faster than the first version we served** (82.6 s against 39.0 s per task).
 - **About 1.2x faster than diffbot's recipe as published,** when both ran today's test (46.7 s against 39.0 s). The earlier 31 October run of that recipe, on the older test, took 59.3 s.
-- **Not one clean series:** the two test versions differ in the facts of one question, and the early rows are only 3 draws each. A rerun of the published recipe on our box, on the server's clock and with more draws, is queued.
+- **Not one clean series:** the two test versions differ in the facts of one question, and the early rows are only 3 draws each. A rerun of the published recipe on our box, on the server's clock and with more draws, is not scheduled.
 - **Since 2 November, task time has stayed flat inside its spread.** The gains since then are inside each decoding step. A step took 14.42 ms on 5 November's rows, and our own top-k kernel took about 0.31 ms off that (Parts 4 and 5).
+
+## Is it worth it?
+
+{::nomarkdown}
+<link rel="stylesheet" href="/assets/posts/qwen3-8-rtx-pro-6000/charts.css">
+<div class="brrr"><section class="card" id="c-worth-it">
+<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Scatter plot of seconds per task, on a log scale, against each maker's DeepSWE v1.1 score. DeepSeek-V4.1-Flash-1017 at 77.0: ours, 3-bit on 2 cards, 34.8 s, drawn hollow because 77.0 is the full model's score; NVIDIA's FP4 on 4 cards 36.4 s; a 2-bit version on 2 cards 150.2 s, drafter not tuned, hollow; full quality on 2 cards with its drafter 330.5 s. Qwen3.8 Flash Next at 58.7: 66.3 s as released, 42.2 s on our tuned stack, each the mean of 3 runs. Qwen3.8 27B at 42.2: 164.2 s as released, mean of 3 runs, and 134.2 to 139.1 s tuned. Tuned points are hollow too. Every point is model time; the Qwen points on the client's clock, with greedy decoding; each Qwen bar spans its 3 runs.">
+<rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
+<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Is it worth it? Model time per task against a public coding score</text>
+<text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSWE v1.1 as each maker reports it · model seconds per task on our 6-task agent test, one request at a time · up and left is better</text>
+<circle cx="68" cy="112" r="7" style="fill:var(--s1,#2a78d6)"/>
+<text x="82.0" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017, other setups</text>
+<circle cx="412.8" cy="112" r="7" style="fill:none;stroke:var(--s2,#eb6834);stroke-width:3"/>
+<text x="426.8" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Ours, 3-bit</text>
+<circle cx="552.4" cy="112" r="7" style="fill:var(--s3,#1baf7a)"/>
+<text x="566.4" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Qwen3.8</text>
+<circle cx="661.5999999999999" cy="112" r="7" style="fill:none;stroke:var(--muted,#898781);stroke-width:3"/>
+<text x="675.6" y="117.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">Hollow: no score of its own</text>
+<line x1="110" x2="1120" y1="489.5" y2="489.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="98.0" y="494.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">40</text>
+<line x1="110" x2="1120" y1="418.5" y2="418.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="98.0" y="423.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">50</text>
+<line x1="110" x2="1120" y1="347.5" y2="347.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="98.0" y="352.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">60</text>
+<line x1="110" x2="1120" y1="276.5" y2="276.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="98.0" y="281.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">70</text>
+<line x1="110" x2="1120" y1="205.5" y2="205.5" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="98.0" y="210.5" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">80</text>
+<line x1="171.5" x2="171.5" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="171.5" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">30 s</text>
+<line x1="343.7" x2="343.7" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="343.7" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">50 s</text>
+<line x1="577.4" x2="577.4" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="577.4" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">100 s</text>
+<line x1="811.1" x2="811.1" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="811.1" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">200 s</text>
+<line x1="1044.8" x2="1044.8" y1="170" y2="525" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
+<text x="1044.8" y="547.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">400 s</text>
+<text x="1120.0" y="569.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="end">model seconds per task (log scale)</text>
+<text x="60.0" y="152.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">DeepSWE v1.1 score</text>
+<g><title>Full quality on 2 cards (AWS), with its DSpark drafter: 330.5 s model time per task, 2 draws (352.9 s without the drafter) · DeepSWE 77.0</title><circle cx="980.4" cy="226.8" r="15" style="fill:transparent"/><circle cx="980.4" cy="226.8" r="9" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
+<g><title>2-bit version, all on 2 cards (AWS, TabbyAPI + ExLlamaV3), drafter not tuned: 150.2 s model time per task · 77.0 is the full model's score, an upper bound here</title><circle cx="714.5" cy="226.8" r="15" style="fill:transparent"/><circle cx="714.5" cy="226.8" r="9" style="fill:var(--surface,#fcfcfb);stroke:var(--s1,#2a78d6);stroke-width:3"/></g>
+<g><title>NVIDIA's FP4 on 4 cards (AWS), draft setting as ours: 36.4 s model time per task · DeepSWE 77.0</title><circle cx="236.9" cy="226.8" r="14" style="fill:transparent"/><circle cx="236.9" cy="226.8" r="8" style="fill:var(--s1,#2a78d6);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
+<g><title>Ours, 3-bit on 2 cards: 34.8 s model time per task · 77.0 is the full model's score, an upper bound for ours</title><circle cx="221.3" cy="226.8" r="14" style="fill:transparent"/><circle cx="221.3" cy="226.8" r="8" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:3"/></g>
+<line x1="439.0" x2="294.4" y1="378.7" y2="378.7" style="stroke:var(--muted,#898781);stroke-width:1.5"/><path d="M286.4 378.7 l8 -5 v10 Z" style="fill:var(--muted,#898781)"/>
+<g><title>Qwen3.8 Flash Next as released (FP8), 2 cards (AWS): 66.3 s model time per task (client clock, greedy), mean of 3 runs (60.0 to 70.1) · DeepSWE 58.7</title><rect x="389.9" y="341.7" width="82.6" height="30" style="fill:transparent"/><line x1="404.9" x2="457.5" y1="356.7" y2="356.7" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/></g>
+<g><title>Qwen3.8 Flash Next on our tuned stack, 2 cards (AWS): 42.2 s model time per task (client clock, greedy), mean of 3 runs (39.5 to 46.4) · 58.7 is the release's score, an upper bound here</title><rect x="249.0" y="341.7" width="84.7" height="30" style="fill:transparent"/><line x1="264.0" x2="318.7" y1="356.7" y2="356.7" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/><line x1="264.0" x2="318.7" y1="356.7" y2="356.7" style="stroke:var(--surface,#fcfcfb);stroke-width:11;stroke-linecap:round"/></g>
+<line x1="744.6" x2="689.9" y1="495.9" y2="495.9" style="stroke:var(--muted,#898781);stroke-width:1.5"/><path d="M681.9 495.9 l8 -5 v10 Z" style="fill:var(--muted,#898781)"/>
+<g><title>Qwen3.8 27B as released (FP8), 1 card (AWS): 164.2 s model time per task (client clock, greedy), mean of 3 runs (148.3 to 175.2) · DeepSWE 42.2</title><rect x="695.1" y="458.9" width="86.2" height="30" style="fill:transparent"/><line x1="710.1" x2="766.4" y1="473.9" y2="473.9" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/></g>
+<g><title>Qwen3.8 27B on our tuned stacks, 1 card (AWS): 134.2 to 139.1 s model time per task (client clock, greedy), three runs on two stacks · 42.2 is the release's score, an upper bound here</title><rect x="661.5" y="458.9" width="42.1" height="30" style="fill:transparent"/><line x1="676.5" x2="688.5" y1="473.9" y2="473.9" style="stroke:var(--s3,#1baf7a);stroke-width:17;stroke-linecap:round"/><line x1="676.5" x2="688.5" y1="473.9" y2="473.9" style="stroke:var(--surface,#fcfcfb);stroke-width:11;stroke-linecap:round"/></g>
+<text x="209.3" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Ours, 3-bit, 2 cards: 34.8 s</text>
+<text x="224.9" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">NVIDIA's FP4, 4 cards: 36.4 s</text>
+<text x="714.5" y="260.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="middle">2-bit, all on 2 cards: 150.2 s</text>
+<text x="714.5" y="280.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">drafter not tuned</text>
+<text x="980.4" y="204.8" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">Full quality, 2 cards, with its drafter: 330.5 s</text>
+<text x="254.0" y="334.7" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 Flash Next, 2 cards: 66.3 s as released, 42.2 s tuned (n = 3 each)</text>
+<text x="506.5" y="451.9" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">Qwen3.8 27B, 1 card: 164.2 s as released (n = 3), 134.2-139.1 s tuned (3 runs)</text>
+<text x="60.0" y="617.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">All model time. DeepSeek: server clock, temperature 1.0, with drafters. Qwen: client clock, greedy decoding (changes thinking length), bars span 3 runs.</text>
+<text x="60.0" y="635.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">Hollow: lower-precision weights with no score of their own, so the release's score is an upper bound. NVIDIA's FP4 has its own, within 0.7 points of the original.</text>
+<text x="60.0" y="653.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:12.5px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">The makers ran DeepSWE in different harnesses. Ours runs on Workstation Edition cards at home, the other points on AWS's Server Edition.</text>
+</svg>
+</section></div>
+{:/nomarkdown}
+
+Each point is one model on one setup. Across is its model time per task. Up is the score its maker reports on DeepSWE v1.1, a public benchmark of agentic coding. Up and to the left is better. DeepSWE v1.1 is the one score that all three makers report. Each Qwen bar spans its 3 runs, and the arrows go from a Qwen release to our tuned stack for it.
+- **Time:** every point is model time per task. DeepSeek's points are on the server's clock. The Qwen points are on the client's clock, from the October runs' request records: each request from its start to its last streamed token, summed. For our server, the two clocks differ by 0.1 s per task; we haven't checked that for the Qwen runs' engine. The Qwen runs used greedy decoding (temperature 0) and the DeepSeek runs temperature 1.0, which changes how long a model thinks.
+- **Hollow points have no score of their own.** Their weights are at lower precision than the release the score is for, so that score is an upper bound for them:
+  - our 3-bit version, under DeepSeek's 77.0 for the full model;
+  - the Qwen models on our tuned stacks, which run lower-precision weights than Qwen's releases;
+  - the 2-bit version that fits on 2 cards. turboderp reports 90.4% on GPQA Diamond for it, against 90.2% for the original (a figure turboderp took from OpenRouter), but it has no DeepSWE score.
+
+  NVIDIA's FP4 version is drawn solid because NVIDIA reports its own scores, within 0.7 points of the original on six benchmarks. Every DeepSeek point on the chart has its drafter, and NVIDIA's 4-card run is the one with the same draft setting as ours.
+- **Harnesses:** the makers ran DeepSWE in different harnesses:
+  - DeepSeek used Mini-SWE-V2;
+  - Qwen3.8 27B used Claude Code;
+  - Qwen3.8 Flash Next used the better of Claude Code and mini-SWE-agent.
 
 ## Other models on the same kind of cards
 
@@ -264,56 +279,43 @@ From our October campaign with Qwen3.8 models, on AWS's Server Edition cards.
 - **Model time here is on the client's clock,** from the runs' request records: each request from its start to its last streamed token, summed. For our server, the two clocks differ by 0.1 s per task; we haven't checked that for these engines.
 - **Spread:** the releases ran 3 times each, on fresh engine starts with the same setup. Their model time ranged from 60.0 to 70.1 s per task (Flash Next) and from 148.3 to 175.2 s (27B), and our tuned Flash Next stack's from 39.5 to 46.4 s. The 27B's tuned figures are three runs on two stacks.
 - **Our tuned stacks** run the models at lower precision than the releases, with our own kernels, among them SilentMountain's decoding kernel for Flash Next's experts. In October we checked them against the releases on our own tests (math questions, needles in long documents and this agent test), but they have no public scores of their own.
-- **A rerun of Flash Next on our home box** with the DeepSeek rows' settings is queued. It replaces this row when it lands.
+- **A rerun of Flash Next on our home box** with the DeepSeek rows' settings is not scheduled; it would replace this row.
 
-## Throughput: several users at once
+## How we measure
 
-Everything above is single-user speed. How much a box serves to many users at once is a different question.
+- **The test** is our 6-task agent test:
+  - two questions about a document of 128,000 or 200,000 tokens;
+  - four coding tasks in a code base, with tools to search, read and write files and to run tests.
 
-**Agent tasks per hour, DeepSeek server** ([Part 9](/2026/11/13/frankenstein-part-9.html)). Since 12 November, 17:56 UTC, our server keeps a 37 GiB KV tier in host RAM (vLLM's KV offloading, about 6 million tokens) behind the 1.07 million tokens of KV cache on its cards. On our 6-task agent test, with every session starting together, graded tasks finished per hour for the whole server:
-
-| Sessions at once | 1 | 2 | 4 | 8 | 16 |
-|---|---:|---:|---:|---:|---:|
-| With the tier (served) | 102.6 | 156.5 | 171.9 | **208.4** | 219.5 |
-| Without it | 91.3 | 123.9 | 185.3 | **87.2** | not run |
-
-- **Without the tier, 8 sessions did fewer tasks per hour than 2.** A second run without it sat on a plateau of 158 to 172 tasks per hour from 3 to 6 sessions. The test's prompts average about 140,000 tokens, so six conversations need about 0.8 million tokens of KV cache and eight about 1.1 million, more than the cards hold (our reading).
-- **With it, 8 sessions do 2.4x as much,** and time to first token, summed over each task's requests, falls from 74 s to 13 s. At 16 the server saturates at its cap of 8 requests running at once: 5% more than at 8, at about 2 minutes of waiting in the queue per task.
-- **Each session is slower with company:** at 8 sessions, about 125 s of model time per task, against 31 s alone.
-- **Pass rates are within sampling noise:** 73 of 90 tasks with the tier and 77 of 90 without, at the counts both ran. They missed the quality bar we had set beforehand for replacing the served setup (6 of 6 at 1 session, 38 of 48 at 8; the tier got 4 of 6 and 37 of 48).
-- These are tasks per hour on the wall clock, tools included, from one run with the tier (one draw per session per count) and two without it, on 12 and 13 November. The single-user rows above were measured before the tier; at 1 session it was level with the setup without it (one draw), so they stand.
-
-**What the drafter is worth with 8 sessions** ([Part 10](/2026/11/14/frankenstein-part-10.html)). On the served setup with the tier, 8 sessions at once wrote 440 output tokens per second with DSpark guessing 5 ahead, against 328 without a drafter (+34%), and finished 211 against 159 graded tasks per hour. Guessing 3 ahead gave 3.5% more output than 5 and guessing 2 ahead 0.9% more, both under the 5% bar we had set beforehand; for a single session, 3 ahead was level and 2 ahead 34% slower. So 5 stays. One engine start per setting, on 13 November.
-
-**Tried with the tier, not adopted** ([Part 10](/2026/11/14/frankenstein-part-10.html)): a change to how vLLM frees a finished conversation's cache across this model's kinds of attention layers. It targeted the prefix-cache collapse at 8 sessions without the tier (60.7% of prompt tokens found in the cache); with the tier alone, 94.8% are found already. On top of the tier it tied: 212 against 208 tasks per hour at 8 sessions, 219 against 220 at 16.
-
-**Output tokens per second, DeepSeek server** ([Part 8](/2026/11/12/frankenstein-part-8.html)), from a replay of agent sessions:
-- **Aggregate output without the tier:** 442 tokens per second at 12 sessions and 122 at 16 (125 for the engine exactly as served). At 16, its two cards no longer hold the sessions' conversations (about 1.07 million tokens of KV cache), so it recomputes 98% of the prompt tokens in its turns.
-- **With a KV tier in host RAM** (vLLM's KV offloading): 542 at 12 sessions (1.23x) and 568 at 16 (4.65x). Against the engine as served then, a 37 GiB tier gave 569 against 125 at 16 sessions (4.55x). That tier is what we serve now.
-- These are output tokens per second on the server's counter, over a 30-minute window, on a replay whose lengths follow a load test of Artus's agent sessions, not live users. The 12-session gain is smaller than our pre-set bar for a clear gain (1.25x); the 16-session one is far outside the noise.
-
-For Qwen3.8 Flash Next, nothing is measured yet:
-- **It fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
-- **Each copy should also serve many users at once cheaply.** It uses only about 6 billion of its parameters per token, and its linear-attention layers (Gated DeltaNet) keep a fixed-size state per request. This is an expectation, not a measurement.
+  Grading is mechanical: exact facts and line citations for the questions, hidden tests for the code. A *draw* is one pass over all 6 tasks.
+- **Model seconds per task** are the time the model spends reading and writing, on the server's own clock, averaged over the tasks. This is the number we rank by. Two older sources are on the client's clock and marked so: diffbot's recipe on our box and the Qwen runs.
+- **Task seconds per task** add the tools and the network, on the client's clock.
+- **Single-user speed:** every number outside the Throughput section is for one request at a time. Serving several users at once is a separate question; see [Throughput](#throughput-several-users-at-once).
+- **Every DeepSeek row uses the same settings:** temperature 1.0, top-p 0.95, thinking on and one request at a time.
+- **Drafters:** a drafter is a small model that guesses a few tokens ahead, and the big model checks all the guesses in one step. It changes the speed, not what the model would write. Its guesses can be its single top choice (*greedy*) or sampled from its probabilities (*probabilistic*), and that can change how many guesses are accepted. Our server samples them. Every setup gets its drafter unless the row says otherwise. Short tests picked how many tokens ahead it guesses for NVIDIA's FP4 and for full quality on 2 cards. Ours kept 5 after a test against 7 on 1 November, and against 3, 2 and none with 8 sessions at once on 13 November ([Part 10](/2026/11/14/frankenstein-part-10.html)). diffbot's recipe as published and the 2-bit version used 5 without a test.
+- **Where the tools run:** in a sandbox on our Mac at home. The AWS runs reach the Mac over the internet, so their task seconds include extra network time. That's why we rank by model seconds.
 
 ## Still measuring
 
-- diffbot's recipe as published, rerun on our box on the server's clock, with more draws.
-- Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings.
+- Qwen3.8 Flash Next on our box, with the DeepSeek rows' settings (not scheduled; waits on Artus's call).
 - Throughput with several users at once for Qwen3.8 Flash Next, and for DeepSeek at 3 to 6 and 9 to 15 sessions with the tier.
 
-## The story so far
+## Would a bigger CPU help?
 
-- [Part 1](/2026/11/02/frankenstein-part-1.html): the body, vLLM with diffbot's 3-bit pack in place of llama.cpp, and a faster schedule for the experts the CPU computes.
-- [Part 2](/2026/11/03/frankenstein-part-2.html): a part from another fork, vLLM-Moet's overlap for these cards, and a cache for repeated prompts.
-- [Part 3](/2026/11/04/frankenstein-part-3.html): a plan for which experts the CPU computes, made from our own agent traffic, and a newer vLLM base we turned down.
-- [Part 4](/2026/11/06/frankenstein-part-4.html): our first own part, an exact top-k kernel for the attention indexer.
-- [Part 5](/2026/11/07/frankenstein-part-5.html): that kernel in served traffic, 0.31 ms faster per decoding step.
-- [Part 6](/2026/11/08/frankenstein-part-6.html): two cards about level with NVIDIA's FP4 on four, draw by draw, what the two cards cost and what our 3-bit weights cost in fidelity.
-- [Part 7](/2026/11/10/frankenstein-part-7.html): block verification for the drafter, which needed an upstream vLLM fix first; with the fix, tokens per verify step rose 1.36%, under the 2% bar we set before the run, so it's parked (decode 0.69% faster net).
-- [Part 8](/2026/11/12/frankenstein-part-8.html): our first several-users result: at 16 agent sessions, a KV tier in host RAM gave 4.65x the aggregate output, because without it the cards recompute evicted conversations. Not served yet.
-- [Part 9](/2026/11/13/frankenstein-part-9.html): that tier, now served: with 8 agent sessions at once, 2.4x the graded tasks per hour (208 against 87), where the server without it fell off a cliff.
-- [Part 10](/2026/11/14/frankenstein-part-10.html): what the drafter is worth with 8 sessions at once (34% more output; 2.3x alone), why we keep it at 5 tokens ahead, and a vLLM cache change that had nothing left to fix once the tier was in.
+*An appendix, written on 8 November at Artus's request, about single-user decoding.*
+
+Not much in decoding, on what we've measured. The figures below are rough ceilings, priors and screens, not measured savings.
+- **A rough ceiling of about 2 to 3 s per task in decoding.** That's what removing the cards' wait for the CPU entirely would save, if the profiled windows stand for whole tasks.
+  - **The wait:** in a profile of our test's own requests on one card, the card waited for the CPU's experts for 1.49 ms of a 15.6 ms step (9.5%), and 8.86% over four windows. Both were measured before a faster schedule for the CPU's work went in; since then it's about 7% (inferred, not measured). The profile splits a step's time into parts; it doesn't trace which part holds up the others.
+  - **In seconds:** each millisecond of step time is worth about 2.06 s per task, so that's about 2 to 3 s of our 34.8 s (6 to 9%).
+  - **Not in it:** the time before the first token, about 5.1 s per task. Part of it likely waits on the CPU too (our inference from profiles), but it isn't split yet.
+- **What an upgrade could buy.** A 96-core Threadripper PRO 9995WX, the CPU diffbot tested the recipe on, fits our motherboard and memory, so it would be a CPU swap. It adds cores; for bandwidth, diffbot's read 282 to 290 GB/s on its whole socket with slower memory, against about 270 GB/s across our two pools. Two EPYCs with faster memory would mean a new platform. Either way, in decoding it can buy at most that ceiling.
+- **AWS's 58.9 s is a different case.** There the recipe got 11 cores per card; ours gets 28. In a screen on 1 November, one more core in each of our core groups (8 cores that share a cache; 32 cores per card instead of 28) changed decoding time by 0.23%, nothing measurable. That setting also took away the core the CPU's coordinating thread had to itself, and a CPU with more core groups wasn't tested. That the recipe ran short on AWS's 11 cores is our inference.
+- **The recipe was tuned once to our cores.** diffbot tuned it on two pools of 42 cores; ours are 28. On 1 November we profiled the pools on our layout and screened their two top settings. The faster schedule cut decoding time per generated token by 4.1% in that screen (2 engine starts each), and time per verify step by 2.07% in the test that followed ([Part 1](/2026/11/02/frankenstein-part-1.html)). It's served since 1 November. Only those two settings were screened.
+- **Memory bandwidth isn't the whole limit either.** The CPU's jobs reached 55 to 61% of the bandwidth a plain read test gets from the same cores, under the old schedule; about 65% under today's (inferred). Those bytes are counted from the model's tensor sizes, not measured. Our reading: part of the wait is in the software.
+- **Cheaper levers are still open,** for our lead agent to rank:
+  - for the experts the CPU holds: more slots for them on the cards, a plan better matched to our traffic, or moving them in and out of the cards' cache as traffic changes. Together, a prior of 2.5 to 8 s per draw (about 0.4 to 1.3 s per task) from a model, not a measurement, estimated before [Part 3](/2026/11/04/frankenstein-part-3.html)'s plan went in and took part of it;
+  - faster software for the CPU's jobs, toward the bandwidth the memory delivers.
 
 ## Credits
 
@@ -334,8 +336,12 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **14 November 2026, 14:39 UTC:** the page is reorganized for readers new to it, at Artus's request. At a glance has five short lines; its other four bullets (the 4-card run with vLLM's default draft setting, diffbot's recipe on AWS and the hardware split, full quality on 2 cards and the 2-bit version) now open "The same model on other setups". Throughput comes right after the story so far, "Would a bigger CPU help?" is an appendix, the two reruns once listed as queued are marked as not scheduled (the diffbot recipe rerun leaves "Still measuring"), and the page links the Qwen3.8 and the Frankenstein threads on X. No number changed.
 - **14 November 2026, 02:15 UTC:** [Part 10](/2026/11/14/frankenstein-part-10.html) is linked under "The story so far". The Throughput section adds what the drafter is worth with 8 sessions at once (440 against 328 output tokens per second, +34%; 5 tokens ahead kept over 3 and 2) and a vLLM cache change tried with the tier and not adopted. The drafter notes add our server's own figures (2.3x at 1 session). No row moves, and the served setup is unchanged.
 - **13 November 2026, 02:39 UTC:** the KV tier in host RAM is now in our served setup, since 12 November, 17:56 UTC. The Throughput section leads with [Part 9](/2026/11/13/frankenstein-part-9.html)'s agent tasks per hour at 1 to 16 sessions: 208 against 87 at 8 sessions (2.4x). At a glance has a line for it. Part 8's line that the tier isn't served is updated, "Still measuring" now names the DeepSeek counts not yet run with the tier, and Part 9 is linked under "The story so far". No single-user row moves.
+
+### Earlier changes
+
 - **12 November 2026, 02:43 UTC:** the Throughput section has its first numbers, for the DeepSeek server, from [Part 8](/2026/11/12/frankenstein-part-8.html). On a replay of agent sessions, our engine without the tier gives 442 output tokens per second at 12 sessions and 122 at 16. With a KV tier in host RAM, it gives 542 and 568 (1.23x and 4.65x), and against the engine exactly as served, a 37 GiB tier gave 4.55x at 16. The tier isn't served yet, so no single-user row moves. The section's old line that the CPU likely limits how many users DeepSeek can serve is gone: at 16 sessions the limit we measured was the cards' KV cache. Part 8 is linked under "The story so far".
 - **10 November 2026, 02:27 UTC:** [Part 7](/2026/11/10/frankenstein-part-7.html) is linked under "The story so far". It tried block verification for the drafter, with vLLM #61161's fix, and parked it: tokens per verify step +1.36%, below the 2% bar set before the run (decode 0.69% faster net). Nothing in our server changed, so no row on this page moves.
 - **8 November 2026, 06:11 UTC:** the Qwen releases now have 3 runs each, not 1: two repeats from October with the same setup and grading join the first run. On the worth chart and in the Qwen table, Flash Next as released is 66.3 s of model time per task (runs 60.0 to 70.1 s; was 70.1 s from one run) and 74.1 s of task time (was 77.7). The 27B is 164.2 s (148.3 to 175.2; was 175.2) and 169.9 s of task time (was 181.3). The Qwen points are drawn as bars over their 3 runs.
