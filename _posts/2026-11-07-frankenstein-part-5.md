@@ -1,36 +1,25 @@
 ---
-title: 'The Frankenstein, Part 5: Our Own Part, Served'
-description: 'Part 5 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. rs8, our exact top-k kernel for the attention indexer, now runs in served traffic. On its first served agent-task rows, verify steps were 0.314 ms faster at matched tokens per step (95% interval 0.217 to 0.410), and quality held. Task time does not resolve the saving at this number of rows, so the count stays at 0.31 ms per verify step. Three more levers were measured and parked.'
+title: 'The Frankenstein, Part 5: Our Kernel Keeps Its 2% in Served Traffic'
+description: 'Part 5 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. rs8, the exact top-k kernel from Part 4, now runs in served traffic. Verify steps there were 0.314 ms faster (95% interval 0.217 to 0.410), about 2.2% of a 14.43 ms step, and quality held. One user''s task time could not show a saving this small at the number of rows we ran, and we knew that before they ran. Three more levers were too small to keep.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, cuda, blackwell]
 ---
 
 *7 November 2026. A progress note from a running campaign, following [Part 4](/2026/11/06/frankenstein-part-4.html). The measurements below are engine-level, and none of them is agent task time unless it says so. Not a peer-reviewed paper.*
 
-Part 5 of our Frankenstein, a DeepSeek-V4.1-Flash server on two RTX PRO 6000s: our own top-k kernel, rs8, now runs in served traffic.
+*Rewritten 16 November 2026 with what later parts of the series showed. The original version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/518d93f/_posts/2026-11-07-frankenstein-part-5.md).*
 
-On its first served agent-task rows, verify steps were 0.314 ms faster at matched tokens per step (95% interval 0.217-0.410).
+Part 5 of our Frankenstein, a DeepSeek-V4.1-Flash server on two RTX PRO 6000s: our own top-k kernel, rs8, from [Part 4](/2026/11/06/frankenstein-part-4.html), has run in served traffic since 06:11 UTC on 6 November. rs8 spreads each row of the attention indexer's top-k over a cluster of eight blocks and returns the same keys, in the same order, as the kernel it replaces.
 
-Part 4 said that served rows didn't carry rs8 yet. Since 06:11Z on 6 November they do: rs8 is in the served engine. Part 4's text stays as it was published, so this is the dated update. Part 4 also carries a dated correction from today: its replay's low tokens per step came from turns decoded past their sampled end, not from low drafting. And a credit fix: the served top-k kernel that rs8 replaces is diffbot's, from their serving recipe, not vLLM's as Part 4 said. Part 4's text and credits are corrected.
-
-The setup is unchanged: [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) on two RTX PRO 6000 Blackwell Workstation Edition GPUs (SM120), vLLM with [diffbot's EXL3 3-bit pack](https://huggingface.co/diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000), one request at a time. rs8 replaces the top-k kernel from diffbot's recipe, which keeps the best 512 entries of each attention-indexer row in one block of 1,024 threads. rs8 keeps that kernel's select and spreads each row over a cluster of eight blocks, and it returned the same keys in the same order on every real call we checked (Part 4).
+On served agent-task rows, each verify step was 0.314 ms faster (95% interval 0.217 to 0.410 ms), about 2.2% of a 14.43 ms step. That confirms Part 4. One user's model time per task didn't move: 34.38 s with rs8 and without it on the same day. At this number of rows it couldn't, because the expected saving was smaller than the noise. Later days didn't show it either ([Part 12](/2026/11/15/frankenstein-part-12.html)).
 
 ## Summary
 
-- **rs8 is served, and its saving carries on served rows.** On its first served W01 rows, verify steps were 0.314 ms faster at matched tokens per step, 95% interval 0.217 to 0.410 ms, against the 18 rows of 5 November.
-- **Same-day check:** the two rows without rs8 that ran before and after it matched 5 November's 18 (drift −0.015 ms). Against those two rows alone, the saving is 0.30 ms.
-- **Quality held:** all 48 agentic task runs passed, and the draws passed 5.17 of 6 tasks on average, against 5.00.
-- **Task time is not resolved at this number of rows.** Server model time was 206.28 s per draw with rs8 and 206.25 s on the same day without it, so it doesn't show the 0.64 s per task that the count implies. The count stays at 0.31 ms per verify step.
-- **Three more levers, measured and parked.** A fused top-k for the indexer's masked layers matched the served path byte for byte once its first check had caught a mismatch, then saved 0.071 ms per verify step, under its bar of 0.08 ms. Two changes to the MoE expert kernel saved at most 0.055 ms, under their bar of 0.10 ms.
-
-## The question, set before the rows
-
-SageSummit, one of our agents, wrote the question and the rule's reader before the first row: on served W01 rows, does rs8 lower the time per verify step by at least half of the counted 0.31 ms? BrightPeak put rs8 into the served stack, and GentleSparrow, our research lead, launched the rows. W01 is our agent-task benchmark: six long-context coding and analysis tasks with real tool calls, graded mechanically, and a row is three draws of it on one engine start.
-
-- **Rows, fixed in advance:** four rows with rs8, between one row without it before and one after, with no interim look. The comparison is 5 November's 18 served rows without rs8 (Part 4's yardstick).
-- **Matched tokens per step.** A verify step checks the drafter's proposed tokens. Time per step rises with tokens per step, an association that follows the text: draws whose text lets steps accept more drafted tokens also take longer per step. Tokens per step varies from draw to draw, so each draw's time per step is moved to 3.740 tokens per step, 5 November's mean, with two slopes for that association: 0.366 and 0.602 ms per token. A row's value is the mean of its three draws.
-- **Bands,** on the 95% interval's lower end: at least 0.155 ms, half the count, reads *carries*; above 0 reads *seen*, and a smaller gain is recounted; at or below 0 rolls rs8 back.
-- **Guards:** any failure of the four agentic tasks, or 4.5 passes per draw or fewer, holds the reading. Same-day rows without rs8 that move more than 0.13 ms from 5 November's mean mark it confounded by drift.
+- **The step saving carries.** 0.314 ms per verify step (95% interval 0.217 to 0.410) at matched tokens per step, from four served rows with rs8 against 18 rows without it from 5 November. All four rs8 rows lie below every one of those 18.
+- **No drift.** Two rows without rs8 on the same day, one before and one after, matched 5 November (−0.015 ms). Against those two alone, the saving is 0.30 ms.
+- **Quality held.** All 48 agentic task runs passed, and the draws passed 5.17 of 6 tasks on average, against 5.00.
+- **Task time can't resolve a 2% step gain here, by design.** At a fixed number of steps, the saving is about 3.8 s per draw. With four rows, the standard error of the difference was 7.45 s per draw, and 5 November's own spread keeps it at 3.18 s or more however many rs8 rows run. So we chose step time as the measure before the rows ran.
+- **Three more levers were too small to keep** (list at the end).
 
 ## The rows
 
@@ -114,56 +103,41 @@ SageSummit, one of our agents, wrote the question and the rule's reader before t
 </section></div>
 {:/nomarkdown}
 
-| Row, 6 November (start, UTC) | Top-k kernel | ms per verify step at 3.740 tokens per step |
-|---|---|---:|
-| 04:25 | diffbot's | 14.451 |
-| 04:43 | rs8 | 14.171 |
-| 05:00 | rs8 | 14.097 |
-| 05:18 | rs8 | 14.049 |
-| 05:36 | rs8 | 14.145 |
-| 05:52 | diffbot's | 14.376 |
-| *5 November, 18 rows* | *diffbot's* | *14.429 (rows 14.280 to 14.582)* |
+Each dot is a row: three draws of W01, our agent test (six long-context coding and analysis tasks with real tool calls, graded mechanically), on one engine start. A verify step checks the drafter's guesses, and its time rises with the number of tokens it accepts, which varies with the text. So each draw's time per step is moved to 3.740 tokens per step, 5 November's mean. Tokens per step were 3.749 with rs8, 3.736 without it on the same day and 3.740 on 5 November, so the adjustment hardly matters: with either slope we used, 0.366 or 0.602 ms per token, the saving is 0.314 or 0.316 ms.
 
-All four rs8 rows lie below every one of the 18 rows of 5 November.
-
-| Reading | at 0.366 ms per token | at 0.602 ms per token |
-|---|---:|---:|
-| Saving against 5 November's 18 rows (95% interval) | **0.314** (0.217 to 0.410) | **0.316** (0.215 to 0.417) |
-| Same-day rows without rs8 against those 18 (drift) | −0.015 | −0.014 |
-| Saving against the two same-day rows alone (95% interval) | 0.298 (0.169 to 0.428) | 0.301 (0.168 to 0.435) |
-
-The smaller lower end over the two slopes is 0.215 ms, above the 0.155 the rule asked for, so the reading is *carries*. Both upper ends are above 0.31, so the count stays at 0.31 ms per verify step. Tokens per step were 3.749 on the rs8 rows, 3.736 on the same-day rows without it and 3.740 on 5 November. The GPUs' heat-protection power cap of 500 W was engaged in a similar share of every row, 26 to 30% of the samples drawing 250 W or more.
+**How we decided.** Before the first row, we fixed the rows (four with rs8, between one row without it before and one after, with no interim look) and the question: does the 95% interval's lower end clear half of Part 4's 0.31 ms? It was 0.215 ms at worst, against 0.155, so the saving carries and the count stays at 0.31 ms.
 
 ## Quality
 
-All 48 runs of the four agentic tasks passed, as all 216 had on 5 November. The draws passed 5.17 of 6 tasks on average over 12 draws, against 5.00 over 54. The misses were in the two question-answering tasks: qa-remote passed in 0.83 of the draws (0.52 on 5 November) and qa-config in 0.33 (0.48).
+All 48 runs of the four agentic tasks passed, as all 216 had on 5 November. The draws passed 5.17 of 6 tasks over 12 draws, against 5.00 over 54. That is a guard against a broken served path, not a quality measurement. rs8 returns the same keys as the kernel it replaces, so it isn't expected to change the text.
 
-That is a guard against a broken served path, not a quality measurement. rs8 returned the same keys as the kernel it replaces on every call we checked, so it isn't expected to change the text. The guard covers the parts of the served path beyond those checks.
+## Why task time can't show it
 
-## Task time
+On the server's clock, model time was 206.28 s per draw with rs8 and 206.25 s on the same-day rows without it, 34.38 s per task either way. 5 November's rows took 208.65 s (34.77 s per task).
 
-On the server's clock, model time was 206.28 s per draw with rs8 (34.38 s per task), 206.25 s on the same-day rows without it (34.38 s) and 208.65 s on 5 November (34.77 s). The two same-day arms are equal on this clock.
+At a fixed 12,340 verify steps per draw, 0.31 ms per step is about 3.83 s per draw, or 0.64 s per task. With four rows, the difference's standard error is 7.45 s per draw, about twice the effect. Adding rs8 rows doesn't fix that: 5 November's own spread keeps the standard error at 3.18 s or more however many rs8 rows run, so the effect would stay near one standard error. We worked this out before the rows ran, and it is why step time, at matched tokens per step, is the measure here.
 
-The count implies 0.31 ms × 12,340 verify steps, about 3.83 s per draw or 0.64 s per task. The plan said before the rows that task time can't decide this: with four rows, the difference's standard error is 7.45 s per draw, and 5 November's own spread keeps it at 3.18 s or more however many rs8 rows run. So the per-step saving carries on served rows, and task time is not resolved at this number of rows. Task time stays in the served series, and the rows from here on run with rs8.
+Later parts showed it again. Steps went from 14.4 ms to 14.0 to 14.1 ms with rs8, while one user's daily means of model time stayed between 33.8 and 34.8 s, all but one day. The number of steps per task moved more than the steps did: from about 1,920 to 2,390 between days ([Part 12](/2026/11/15/frankenstein-part-12.html)). On a test this size, a step gain of a few percent is real but doesn't show in task time.
 
-## Three more levers, measured and parked
+## Three more levers, too small to keep
 
-Each had a bar written before it ran, and each saved less than its bar. These are engine-level timings on each test's own bench, not task time.
-- **F, a fused top-k for the indexer's masked layers** (BrightPeak's design and bench, SilentMountain's kernel). On four of the indexer's eight top-k layers, only the keys in a row's 2,048 candidate blocks count. The served path sets the rest of the row to −∞ in two small kernels, then runs rs8 over the whole row. F gathers the candidate blocks into shared memory and selects from them in one launch, with the select from diffbot's kernel, which beat rs8 on rows this short. Its first checks stopped it before any timing. On 12 test rows of zeros and subnormal values (floats below the normal range), F's output differed from the served path's: F ranked those values exactly, while the served kernels rank positive subnormals as zero. Its bar is byte equality with the served kernel, so F was changed to rank them the same way. Fixed, it matched byte for byte on all 388 real calls (2,328 rows) and on the 816 rows of its pre-timing check; memcheck and racecheck found no errors. It then saved 0.071 ms per verify step at W01's mix of contexts, under its bar of 0.08 ms, so it is parked. The check caught the mismatch; the bar parked a real but small gain.
-- **Two changes to the MoE expert kernel** (SilentMountain), each timed inside one engine start on 128 chunks of the kernel's work. A cheaper end for each segment of its split-K reduce saved 0.039 ms per verify step (95% interval 0.035 to 0.042). Three ways of scheduling the memory copies in its matrix-multiply pipeline saved 0.000, 0.026 and 0.055 ms. All are under their bar of 0.10 ms. Each variant's output stayed within the bound set by the served kernel's own run-to-run differences, which are not zero because its floating-point atomic adds change order between runs.
+Each saved less than the bar we set before it ran. These are engine-level timings on each test's own bench.
+
+- **A fused top-k for the indexer's masked layers.** On four of the indexer's eight top-k layers, only the keys in a row's 2,048 candidate blocks count. The served path sets the rest of the row to −∞ in two small kernels, then runs rs8 over the whole row. The fused version gathers the candidate blocks into shared memory and selects from them in one launch, with the select from diffbot's kernel, which beat rs8 on rows this short. Its first check caught a mismatch on subnormal values (floats below the normal range): it ranked them exactly, while the served kernels rank positive subnormals as zero. Changed to match, it equalled the served path byte for byte on all 388 real calls (2,328 rows). It saved 0.071 ms per verify step, against a bar of 0.08 ms.
+- **Two changes to the MoE expert kernel**, each timed inside one engine start on 128 chunks of the kernel's work. A cheaper end for each segment of its split-K reduce saved 0.039 ms per verify step (95% interval 0.035 to 0.042). Three ways of scheduling the memory copies in its matrix-multiply pipeline saved 0.000, 0.026 and 0.055 ms. All are under their bar of 0.10 ms. Each variant's output stayed within the served kernel's own run-to-run differences, which aren't zero because its floating-point atomic adds change order between runs.
 
 ## Next
 
-Served rows now run with rs8, and they continue the task-time series.
+Served rows now run with rs8.
 
 ## Credits
 
 - **vLLM** for the engine.
-- **diffbot** for the EXL3 3-bit pack and its serving recipe, including the indexer top-k kernel that rs8 replaces, matches and builds on (its select also runs inside F), and the CPU-expert runtime.
+- **diffbot** for the EXL3 3-bit pack and its serving recipe, including the indexer top-k kernel that rs8 replaces, matches and builds on (its select also runs inside the fused top-k), and the CPU-expert runtime.
 - **turboderp** for the EXL3 format.
 - **kacper-daftcode** for [vLLM-Moet](https://github.com/kacper-daftcode/vLLM-Moet)'s SM120 mHC overlap and its kernels (commit `ec8a1e05e1cb`, Apache-2.0), still served.
 - **DeepSeek** for DeepSeek-V4.1-Flash-1017.
 
 ## AI assistance
 
-AI agents (Claude and GPT models) designed, wrote and ran these tests and the kernel. An independent AI reviewer checked each design before launch and audited each result afterwards, and an AI agent drafted this post. Artus set the goal, authorized the hardware and asked for these progress notes.
+AI agents (Claude and GPT models) designed, wrote and ran these tests and the kernel. An independent AI reviewer checked each design before launch and audited each result afterwards, and AI agents drafted this post and its 16 November rewrite. Artus set the goal, authorized the hardware and asked for these progress notes.

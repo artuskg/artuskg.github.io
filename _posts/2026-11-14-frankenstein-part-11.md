@@ -1,11 +1,13 @@
 ---
 title: 'The Frankenstein, Part 11: Our Serving Code Is Public'
-description: 'Part 11 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. Everything we serve on top of diffbot''s 3-bit recipe is now in our public sm120-serving repository: the patches, our indexer top-k kernel, the host-expert plan, the RAM KV tier settings and a start script that reproduces our served container. The tuned Qwen3.8 stacks from October are there too.'
+description: 'Part 11 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. Everything we serve on top of diffbot''s 3-bit recipe is now in our public sm120-serving repository: the patches, our indexer top-k kernel, the host-expert plan, the settings for the two-tier KV cache (cards plus host RAM) and a start script that reproduces our served container. The tuned Qwen3.8 stacks from October are there too.'
 categories: [AI, Research Notes]
 tags: [deepseek, qwen, vllm, gpu, cuda, blackwell, open-source]
 ---
 
 *14 November 2026. A short note in the series that began with [Part 1](/2026/11/02/frankenstein-part-1.html). [Where We Stand](/frankenstein/) has all the numbers.*
+
+*Updated 16 November 2026: the table now gives what Part 12 measured for the CUDA graph sizes, and the KV cache is named as two-tier. The previous version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/518d93f/_posts/2026-11-14-frankenstein-part-11.md).*
 
 When we started tuning Qwen3.8 on these cards in October, we promised to publish the serving code. It's now public, for the Qwen stacks and for the DeepSeek server this series is about: **[github.com/Percivio-Ltd/sm120-serving](https://github.com/Percivio-Ltd/sm120-serving)** (Apache-2.0).
 
@@ -20,8 +22,8 @@ When we started tuning Qwen3.8 on these cards in October, we promised to publish
 | vLLM-Moet's mHC overlap (kacper-daftcode's, fetched from their repository) | [Part 2](/2026/11/03/frankenstein-part-2.html) | 4.88% less time per verify step |
 | A host-expert plan fitted to our own agent traffic | [Part 3](/2026/11/04/frankenstein-part-3.html) | 2.42% less time per verify step |
 | Our exact multi-CTA indexer top-k kernel | [Parts 4](/2026/11/06/frankenstein-part-4.html) and [5](/2026/11/07/frankenstein-part-5.html) | 0.31 ms less per verify step |
-| The RAM KV tier, with a fix to vLLM's offload worker | [Parts 8](/2026/11/12/frankenstein-part-8.html) and [9](/2026/11/13/frankenstein-part-9.html) | 2.4x the graded tasks per hour at 8 sessions |
-| CUDA graph sizes matched to the drafter's batches | new, 14 November | adopted; its numbers come in a later part |
+| The two-tier KV cache (cards plus host RAM), with a fix to vLLM's offload worker | [Parts 8](/2026/11/12/frankenstein-part-8.html) and [9](/2026/11/13/frankenstein-part-9.html) | 2.4x the graded tasks per hour at 8 sessions on our test, at about the same tokens per task |
+| CUDA graph sizes matched to the drafter's batches | [Part 12](/2026/11/15/frankenstein-part-12.html) | the decode step with 7 requests running from 48.7 to 37.1 ms |
 
 The directory's README names each part's setting or patch and what it changes, and a start script sets everything on top of the recipe's defaults.
 

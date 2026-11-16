@@ -1,11 +1,13 @@
 ---
 title: 'The Frankenstein, Part 12: Where the Speed Went, and Graph Sizes Matched to the Drafter'
-description: 'Part 12 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. Since the evening of 2 November, one user at a time has stayed about as fast on our agent test, while, since 12 November, 8 agent sessions at once went from 87 to about 210-215 graded tasks per hour. The newest gain is under load too: vLLM padded 5 and 7 running requests to larger recorded graphs, and matching the graph sizes to the drafter cut the 7-request step from 48.7 to 37.1 ms. At 8 sessions the server writes 6.9% more tokens per second.'
+description: 'Part 12 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. Since the evening of 2 November, one user at a time has stayed about as fast on our agent test, while, since 12 November, 8 agent sessions at once went from 87 to about 210-215 graded tasks per hour. The newest gain is under load too: vLLM padded 5 and 7 running requests to larger recorded graphs, and matching the graph sizes to the drafter cut the 7-request step from 48.7 to 37.1 ms. At 8 sessions its run wrote 6.9% more tokens per second and finished 2.3% more graded tasks per hour, but it also wrote 4.5% more tokens per task, so the step time is the clean measure.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, cuda, blackwell, speculative-decoding]
 ---
 
 *15 November 2026. A progress note from a running campaign, following [Part 11](/2026/11/14/frankenstein-part-11.html). Not a peer-reviewed paper. [Where We Stand](/frankenstein/) has all the numbers.*
+
+*Updated 16 November 2026: [Part 13](/2026/11/16/frankenstein-part-13.html)'s correction is folded into the text (tasks per hour rose less than tokens per second because the graph-size fix's run wrote 4.5% more tokens per task, not because of prefill, tool calls and waiting, as we first guessed), the table gains a tokens-per-task row, the description no longer leads with the +6.9% output, and the text calls the cache the two-tier KV cache or the KV cache in host RAM. The previous version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/518d93f/_posts/2026-11-15-frankenstein-part-12.md).*
 
 Twelve parts in, a fair question is whether this is still paying off. For one user at a time, the honest answer is: not much, lately. For several users at once, it is paying more than ever. This part shows both, and adds one more gain of the second kind.
 
@@ -16,7 +18,7 @@ Two terms we use throughout: **model time** is the time the server spends readin
 {::nomarkdown}
 <link rel="stylesheet" href="/assets/posts/qwen3-8-rtx-pro-6000/charts.css">
 <div class="brrr"><section class="card" id="c-where-the-speed-went">
-<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960" role="img" aria-label="Two charts on one date axis, 31 October to 14 November 2026. Top: one user's model seconds per task, from 40.5 (diffbot's recipe as published) and 38.2 on 1 to 2 November to 33.8 on the evening of 2 November, then 34 to 35 through 11 November (38.6 on 9 November from 6 draws), and single draws of 29 to 45 from 12 to 14 November. Bottom: graded tasks per hour with 8 sessions, 87 without the KV tier on 12 November, 208 with it, 210 to 212 on 13 and 14 November, and 215 with the graph-size fix.">
+<svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="1200" height="960" role="img" aria-label="Two charts on one date axis, 31 October to 14 November 2026. Top: one user's model seconds per task, from 40.5 (diffbot's recipe as published) and 38.2 on 1 to 2 November to 33.8 on the evening of 2 November, then 34 to 35 through 11 November (38.6 on 9 November from 6 draws), and single draws of 29 to 45 from 12 to 14 November. Bottom: graded tasks per hour with 8 sessions, 87 with the cards only on 12 November, 208 with the two-tier KV cache, 210 to 212 on 13 and 14 November, and 215 with the graph-size fix.">
 <rect width="1200" height="960" style="fill:var(--surface,#fcfcfb)"/>
 <text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Where the speed went: one user level since 2 Nov evening, 8 sessions 2.4× since 12 Nov</text>
 <text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on 2× RTX PRO 6000, our server by date · our 6-task agent test</text>
@@ -122,8 +124,8 @@ Two terms we use throughout: **model time** is the time the server spends readin
 <line x1="1059.7" x2="1059.7" y1="800" y2="805" style="stroke:var(--axis,#c3c2b7);stroke-width:1"/>
 <line x1="1130.0" x2="1130.0" y1="800" y2="805" style="stroke:var(--axis,#c3c2b7);stroke-width:1"/>
 <text x="532.1" y="680.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">no comparable 8-session measurement before 12 November</text>
-<g><title>12 Nov 07:41: 87.2 tasks per hour, without the KV tier, one step of 48 tasks</title><circle cx="941.5" cy="716.3" r="14" style="fill:transparent"/><circle cx="941.5" cy="716.3" r="6" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:2"/></g>
-<g><title>12 Nov 23:20: 208.4 tasks per hour, with the KV tier, one step of 48 tasks</title><circle cx="987.4" cy="599.9" r="14" style="fill:transparent"/><circle cx="987.4" cy="599.9" r="6" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:2"/></g>
+<g><title>12 Nov 07:41: 87.2 tasks per hour, cards only, one step of 48 tasks</title><circle cx="941.5" cy="716.3" r="14" style="fill:transparent"/><circle cx="941.5" cy="716.3" r="6" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:2"/></g>
+<g><title>12 Nov 23:20: 208.4 tasks per hour, with the two-tier KV cache, one step of 48 tasks</title><circle cx="987.4" cy="599.9" r="14" style="fill:transparent"/><circle cx="987.4" cy="599.9" r="6" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:2"/></g>
 <g><title>13 Nov 10:37: 211.7 tasks per hour</title><circle cx="1020.4" cy="596.8" r="14" style="fill:transparent"/><circle cx="1020.4" cy="596.8" r="6" style="fill:var(--s2,#eb6834);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
 <g><title>13 Nov 18:18: 210.2 tasks per hour</title><circle cx="1042.9" cy="598.2" r="14" style="fill:transparent"/><circle cx="1042.9" cy="598.2" r="6" style="fill:var(--s2,#eb6834);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
 <g><title>14 Nov 05:46: 211.9 tasks per hour</title><circle cx="1076.6" cy="596.6" r="14" style="fill:transparent"/><circle cx="1076.6" cy="596.6" r="6" style="fill:var(--s2,#eb6834);stroke:var(--surface,#fcfcfb);stroke-width:2"/></g>
@@ -133,8 +135,8 @@ Two terms we use throughout: **model time** is the time the server spends readin
 <text x="78.0" y="548.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">6 steps, 288 tasks</text>
 <circle cx="256" cy="543" r="6" style="fill:var(--surface,#fcfcfb);stroke:var(--s2,#eb6834);stroke-width:2"/>
 <text x="268.0" y="548.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">one step, 48 tasks</text>
-<text x="929.5" y="721.3" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">87, without the KV tier</text>
-<text x="975.4" y="625.9" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">208, KV tier</text>
+<text x="929.5" y="721.3" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">87, cards only</text>
+<text x="975.4" y="625.9" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">208, two-tier</text>
 <text x="1083.6" y="579.6" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="end">215, graph-size fix</text>
 <text x="145.2" y="822.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">1 Nov</text>
 <text x="285.9" y="822.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">3 Nov</text>
@@ -157,11 +159,11 @@ Two terms we use throughout: **model time** is the time the server spends readin
 
 **The steps kept getting faster; the tasks didn't.** Each decoding step took 15.5 ms on 1 and 2 November, 14.8 ms after the overlap, 14.4 ms after the host-expert plan ([Part 3](/2026/11/04/frankenstein-part-3.html)) and 14.0 to 14.1 ms with our top-k kernel ([Part 5](/2026/11/07/frankenstein-part-5.html)). From 14.8 to 14.1 ms is worth about 1.4 s per task at about 2,000 steps per task, but the daily means didn't fall. How much the model writes varies more than that: the 2 November evening draws needed about 1,920 steps per task, the next days 1,990 to 2,060, and 9 November's 6 draws 2,390. That is why 9 November reads 38.6 s with the fastest steps so far. On a test this size, step-time gains of a few percent are real but don't show up in task time.
 
-Since 12 November we have only single draws, most of them taken as the one-session step of our 8-session runs: with the KV tier they average 33.9 s, from 29.2 to 44.8.
+Since 12 November we have only single draws, most of them taken as the one-session step of our 8-session runs: with the two-tier KV cache they average 33.9 s, from 29.2 to 44.8.
 
-**Several users at once** is where the gains are now. With 8 agent sessions sharing the server, it finished 87 graded tasks per hour on 12 November. The KV tier in host RAM took that to 208 the same day ([Part 9](/2026/11/13/frankenstein-part-9.html)), about 2.4 times as many. Longer runs since then put the served setup at 208 to 212, and the graph-size fix below added 2.3% on top in its own test: 215 against 210. That line only starts on 12 November: we had no comparable 8-session measurement before then.
+**Several users at once** is where the gains are now. With 8 agent sessions sharing the server, it finished 87 graded tasks per hour on 12 November. Adding a KV cache in host RAM behind the cards' own took that to 208 the same day ([Part 9](/2026/11/13/frankenstein-part-9.html)), about 2.4 times as many, at about the same tokens per task (7,712 and 7,815). Longer runs since then put the served setup at 208 to 212, and the graph-size fix below added 2.3% on top in its own test: 215 against 210, though its run wrote 4.5% more tokens per task. That line only starts on 12 November: we had no comparable 8-session measurement before then.
 
-Why the two lines differ: one user's speed is set by how long each decoding step takes, and each part since early November took only a few percent off a step. With 8 sessions, the server first ran out of KV cache, the memory that holds the conversations: without the tier, 8 sessions did fewer tasks per hour than 2. Fixing that was worth far more than any one-user part.
+Why the two lines differ: one user's speed is set by how long each decoding step takes, and each part since early November took only a few percent off a step. With 8 sessions, the server first ran out of KV cache, the memory that holds the conversations: without the KV cache in host RAM, 8 sessions did fewer tasks per hour than 2. Fixing that was worth far more than any one-user part.
 
 ## New: graph sizes matched to the drafter
 
@@ -175,14 +177,14 @@ The fix is one setting: record graphs for every multiple of 6 up to 48. In a tes
 |---|---:|---:|
 | Decode step with 7 requests running | 48.7 ms | **37.1 ms** |
 | Decode step with 8 requests running | 39.2 ms | 38.7 ms |
-| Output tokens per second, 8 sessions | 438.5 | **468.7** (+6.9%) |
-| Graded tasks per hour, 8 sessions | 210.2 | **215.0** (+2.3%) |
+| Output tokens per second, 8 sessions | 438.5 | 468.7 (+6.9%) |
+| Graded tasks per hour, 8 sessions | 210.2 | 215.0 (+2.3%) |
+| Tokens per task, 8 sessions | 7,405 and 7,622 | 7,849 (+4.5%) |
 | Tasks passed, 8 sessions | 246 and 243 of 288 | 249 of 288 |
 | One session, ms per generated token | 3.63 and 3.83 | 3.75 (level) |
 
 - **The 7-request step is 24% shorter,** and the 8-request step, which never padded, is within 1.4%. 5 requests gained too (29.3 against 40.1 and 41.7 ms).
-- **Tasks per hour move less than tokens per second,** 2.3% against 6.9%. Our reading, not measured: a task's wall time also holds prefill, tool calls and waiting, which the fix doesn't touch.
-  - **Correction, 16 November:** that reading was wrong. The fix's run wrote 4.5% more tokens per task than the served runs (7,849 against 7,405 and 7,622), and that accounts for the gap: 1.069 / 1.045 = 1.023. Some of the +6.9% may come from the longer answers too; the step times above are the clean measure. [Part 13](/2026/11/16/frankenstein-part-13.html) explains.
+- **Tasks per hour move less than tokens per second,** 2.3% against 6.9%, because the fix's run wrote 4.5% more tokens per task than the served runs (7,849 against 7,405 and 7,622): 1.069 / 1.045 = 1.023. Some of the +6.9% may come from those longer answers too, because prompt and tool time get spread over more tokens. So the step times above are the clean measure ([Part 13](/2026/11/16/frankenstein-part-13.html) explains).
 - **It has been served since 14 November, 13:03 UTC.**
 
 ## Tried and parked
@@ -192,7 +194,7 @@ The fix is one setting: record graphs for every multiple of 6 up to 48. In a tes
 
 ## Limits
 
-- **One run per arm** for the graph-size test; the two runs of the served setup bracket it. They differ by 1.2% in tokens per second, so the +6.9% stands clear of that, and by 1.7% in tasks per hour, so the +2.3% in tasks per hour is barely outside the run-to-run spread.
+- **One run per arm** for the graph-size test; the two runs of the served setup bracket it. They differ by 1.2% in tokens per second and by 1.7% in tasks per hour. The +6.9% stands clear of that spread, though part of it may be longer answers (above); the +2.3% in tasks per hour is barely outside it.
 - **The fix's run had more preemptions,** requests paused for lack of memory (5 against 0 and 2 in the measured window). They may cost it a little; we don't count that as part of the gain.
 - **We couldn't check that its output is bit-identical,** because the served setup isn't: two runs of it already differ under greedy decoding. The change only picks which recorded graph a batch replays, not the math, and every other safety check passed.
 - **The one-user line joins two kinds of measurement.** Up to 11 November, each point is the mean of 6 to 207 draws of our agent test, run one at a time. From 12 November, each is a single draw, all but the first taken as the one-session step of an 8-session run. The first point, diffbot's recipe as published, is on the client's clock (the two clocks were 0.1 s per task apart on 5 November). The first version we served, 82.6 s per task including tools on 31 October, ran an older version of the test and is left out.

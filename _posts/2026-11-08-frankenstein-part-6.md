@@ -1,13 +1,15 @@
 ---
-title: 'The Frankenstein, Part 6: Two Cards Keep Pace With Four'
-description: 'Part 6 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. On our agent test it needs 34.8 s of model time per task, against 36.4 s for NVIDIA''s FP4 version on four cards, each with its drafter: 4.5% less on average, inside the spread between draws, so about level. The two cards it does not need listed at $16,000 each in August. The price is fidelity: our 3-bit weights deviate measurably from the original model.'
+title: 'The Frankenstein, Part 6: For One User, Two Cards Keep Pace With Four'
+description: 'Part 6 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. On our agent test, one request at a time, it needs 34.8 s of model time per task, against 36.4 s for NVIDIA''s FP4 version on four cards, each with its drafter: 4.5% less on average, inside the spread between draws, so about level. The two cards it does not need listed at $16,000 each in August. The price is fidelity: our 3-bit weights deviate measurably from the original model. With several users, our two cards later needed the two-tier KV cache (Part 9); the four-card setup was never measured that way.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, blackwell]
 ---
 
 *8 November 2026. A note from a running campaign, following [Part 5](/2026/11/07/frankenstein-part-5.html). It adds no new measurement: it puts two rows of [Where We Stand](/frankenstein/) side by side, draw by draw, with what they mean for the cards and what they cost in fidelity. Not a peer-reviewed paper.*
 
-Part 6 of our Frankenstein: on two RTX PRO 6000s, our DeepSeek-V4.1-Flash server keeps pace with NVIDIA's FP4 version on four.
+*Updated 16 November 2026: the title and the chart's title now say "for one user", because every number here is one request at a time, and a new section says what later parts showed with several users. The previous version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/518d93f/_posts/2026-11-08-frankenstein-part-6.md).*
+
+Part 6 of our Frankenstein: on two RTX PRO 6000s, our DeepSeek-V4.1-Flash server keeps pace with NVIDIA's FP4 version on four, one request at a time.
 
 Model time per task on our agent test: 34.8 s vs 36.4 s, each with its drafter. 4.5% less on average, inside the draw spread: about level.
 
@@ -15,7 +17,7 @@ Artus asked what that result is worth. Two things: the speed, and the two cards 
 
 ## Summary
 
-- **About level with four cards, on two.** Our server needs 34.8 s of model time per task on our agent test. NVIDIA's FP4 version on 4 cards needs 36.4 s, with the drafter set the same way. Theirs is 1.047x ours: ours takes 4.5% less model time on average.
+- **About level with four cards, on two.** NVIDIA's FP4 version on 4 cards needs 1.047x our model time per task, with the drafter set the same way: ours takes 4.5% less on average.
 - **That 4.5% is not a resolved speed-up.** It is 1.6 s per task, with a 95% interval from 4.8 s slower to 8.1 s faster, because NVIDIA's side has only three draws: 39.8, 34.7 and 34.8 s per task. Ours ranged from 27.8 to 44.6 s over 54 draws.
 - **Two cards not bought.** NVIDIA raised the RTX PRO 6000 Blackwell's list price to $16,000 in August, and the lowest US retail price we found was $17,063 on 4 November. The two cards our server doesn't need come to about $32,000 at that list price. That covers the cards only, and it holds for our workstation, not for any two cards.
 - **The price is fidelity.** Our weights are diffbot's 3-bit pack, and they deviate measurably from the original model. On diffbot's measurement, the most likely next token differs from the original's at 7.1% of positions in neutral text, against 3.0% when the original is simply run twice. NVIDIA reports its 4-bit version within 0.7 points of the original on six benchmarks; ours has no benchmark score of its own, and very likely deviates more, though no one has measured both on the same text.
@@ -39,7 +41,7 @@ Artus asked what that result is worth. Two things: the speed, and the two cards 
 <div class="brrr"><section class="card" id="c-two-cards-draw-by-draw">
 <svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" role="img" aria-label="Dot plot of model seconds per task, one dot per draw of our 6-task agent test. Ours on 2 cards: 54 draws from 27.8 to 44.6 s, mean 34.8 s. NVIDIA's FP4 on 4 cards: 3 draws, 39.8, 34.7, 34.8 s, mean 36.4 s.">
 <rect width="1200" height="675" style="fill:var(--surface,#fcfcfb)"/>
-<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Two cards, level with four: model time per task, draw by draw</text>
+<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">Two cards, level with four, for one user: model time per task, draw by draw</text>
 <text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on our 6-task agent test · server clock · each dot is one draw of all 6 tasks · lower is better</text>
 <line x1="168.6" x2="168.6" y1="120" y2="560" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
 <text x="168.6" y="582.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">26 s</text>
@@ -133,9 +135,8 @@ Artus asked what that result is worth. Two things: the speed, and the two cards 
 </section></div>
 {:/nomarkdown}
 
-- **Ours:** 54 draws, mean 34.8 s per task, standard deviation 3.6 s, from 27.8 to 44.6 s.
-- **NVIDIA's FP4:** 3 draws, 39.8, 34.7 and 34.8 s, mean 36.4 s.
-- **The difference in means,** 1.6 s per task, is smaller than its standard error, 1.7 s. Most of that error comes from having 3 draws on NVIDIA's side. The 95% interval runs from ours 4.8 s slower to 8.1 s faster per task (Welch's t, 2.4 degrees of freedom), and more 4-card draws could move their mean either way. So: about level, with 4.5% less model time on average for ours, not a measured speed-up.
+- **Ours:** 54 draws, mean 34.8 s per task, standard deviation 3.6 s. **NVIDIA's FP4:** 3 draws, mean 36.4 s.
+- **The difference in means,** 1.6 s per task, is smaller than its standard error, 1.7 s. Most of that error comes from having 3 draws on NVIDIA's side. The 95% interval runs from ours 4.8 s slower to 8.1 s faster per task (Welch's t, 2.4 degrees of freedom), and more 4-card draws could move their mean either way.
 - **Ours isn't faster by thinking less.** It decoded 46.2K tokens per draw at 259.4 tokens/s, against 44.7K at 244.8 tokens/s for NVIDIA's version.
 
 ## What two cards save
@@ -162,6 +163,10 @@ diffbot measured their pack against the original DeepSeek-V4.1-Flash-1017 and pu
 - **diffbot measured the pack on their serving stack.** We haven't repeated it on ours.
 - **Against NVIDIA's 4-bit version, ours very likely deviates more, but that isn't measured.** NVIDIA reports its version within 0.7 points of the original on six benchmarks, and ours is the one at 3 bits with no benchmark score of its own. We have no KL for NVIDIA's version on the same text, and its experts round activations to 4 bits as well as weights, so we can't put a number on the gap.
 - **On our own agent test, both passed 83% of tasks:** 270 of our 324 task runs, and 15 of NVIDIA's 18. That's too few tasks on their side to rank, and the test checks whether a task gets done, not fidelity.
+
+## With several users: what later parts showed
+
+Everything above is one request at a time. Later parts measured our server with several agent sessions at once, and there the two cards ran short of memory first. They hold about 1.07 million tokens of KV cache, the model's working memory of each conversation ([Part 8](/2026/11/12/frankenstein-part-8.html)). With the cache on the cards alone, 8 sessions finished 87 graded tasks per hour, fewer than 2 sessions did. With the two-tier KV cache, the cards plus host RAM, 8 sessions finished 208, at about the same tokens per task (7,712 against 7,815), so that is speed ([Part 9](/2026/11/13/frankenstein-part-9.html)). We never measured NVIDIA's 4-card setup with several users, so how the two compare there is open. For one user, the figure held: since the evening of 2 November, every day's mean but one has stayed between 33.8 and 34.8 s per task ([Part 12](/2026/11/15/frankenstein-part-12.html)).
 
 ## What it means
 

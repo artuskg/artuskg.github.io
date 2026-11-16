@@ -1,47 +1,35 @@
 ---
-title: 'The Frankenstein, Part 7: Block Verification, Fixed, Measured and Parked'
-description: 'Part 7 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. We tried block verification for the DSpark drafter. It needed an upstream vLLM fix first (#61161), which we backported and which passes its tests on SM120. On our agent test, block verification raised tokens per verify step by 1.36% and time per step by 0.67%, a net decode gain of 0.69%. The 1.36% is below the 2% bar for tokens per verify step that we set before the run, so we parked it.'
+title: 'The Frankenstein, Part 7: Block Verification, 0.7% Faster Decoding, Not Enough to Keep'
+description: 'Part 7 of assembling a DeepSeek-V4.1-Flash server on two RTX PRO 6000s. Block verification (Sun et al., Google Research) judges a drafted block as a whole. With the upstream vLLM fix #61161, which we backported and which passes its tests on SM120, it kept 1.36% more tokens per step from the DSpark drafter but made each step 0.67% slower: decode 0.69% faster net, against the paper''s 5 to 8% on its own tasks. We did not keep it.'
 categories: [AI, Research Notes]
 tags: [deepseek, vllm, gpu, cuda, blackwell, speculative-decoding]
 ---
 
 *10 November 2026. A progress note from a running campaign, following [Part 6](/2026/11/08/frankenstein-part-6.html). The measurements below are of the decode step, not agent task time. Not a peer-reviewed paper.*
 
-Part 7 of our Frankenstein: we tried block verification for the DSpark drafter on our 2× RTX PRO 6000 DeepSeek-V4.1-Flash server.
+*Rewritten 16 November 2026 with what later parts of the series showed. The original version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/518d93f/_posts/2026-11-10-frankenstein-part-7.md). Its first title was "Block Verification, Fixed, Measured and Parked".*
 
-It needed an upstream vLLM fix first, which works on SM120. Tokens per verify step +1.36%, under the 2% bar we set before the run, so it's parked.
+Part 7 of our Frankenstein: we tried block verification on the DSpark drafter of our 2× RTX PRO 6000 DeepSeek-V4.1-Flash server, one request at a time.
 
-The setup is unchanged: [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) on two RTX PRO 6000 Blackwell Workstation Edition GPUs (SM120), vLLM with [diffbot's EXL3 3-bit pack](https://huggingface.co/diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000) and its serving recipe, plus our own parts from Parts 1 to 5, one request at a time. DeepSeek's DSpark drafter proposes 5 tokens ahead, and each verify step checks them against the full model.
+Each verify step kept 1.36% more of the drafter's tokens but took 0.67% longer, so decode ran only 0.69% faster. The paper reports 5 to 8% on its own tasks. We didn't keep it: 1.36% more tokens per step was under the 2% bar we set before the run. A test of model time per task couldn't have shown a gain this small anyway ([Part 12](/2026/11/15/frankenstein-part-12.html)).
 
-## Summary
+It first needed an upstream fix. Before [vLLM #61161](https://github.com/vllm-project/vllm/pull/61161), vLLM's block verification sampled from a biased distribution. We backported the fix, and it passes its tests on SM120.
 
-- **Block verification needed a fix first, and the fix works on SM120.** vLLM's block verification reused random draws across rounds, which biased what it sampled. [vLLM #61161](https://github.com/vllm-project/vllm/pull/61161) fixed that upstream on 15 October. We backported it whole onto our engine's vLLM, and its regression tests pass on our cards, while our engine's own build gives the predicted 4 failures and 2 passes.
-- **It isn't worth keeping on our server.** On our 6-task agent test, block verification raised tokens per verify step by 1.36% and time per verify step by 0.67%, so decode ran 0.69% faster net.
-- **Below our bar.** Before the run, we had set a gain of at least 2% in tokens per verify step as the minimum worth a task-time test. 1.36% is under it, so block verification is parked. By the estimate we set beside the bar, this gain would save about 0.2 s of the 34.8 s of model time per task ([Part 6](/2026/11/08/frankenstein-part-6.html)).
+The setup is unchanged: [DeepSeek-V4.1-Flash-1017](https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017) on two RTX PRO 6000 Blackwell Workstation Edition GPUs (SM120), vLLM with [diffbot's EXL3 3-bit pack](https://huggingface.co/diffbot/DeepSeek-V4.1-Flash-EXL3-3bpw-2x-RTX-PRO-6000) and its serving recipe, plus our own parts from Parts 1 to 5. DeepSeek's DSpark drafter proposes 5 tokens ahead, and each verify step checks them against the full model.
 
 ## What block verification is
 
 A drafter guesses several tokens ahead, and the full model checks them all in one step. The usual rule accepts the guesses one at a time and stops at the first rejection. [Block verification](https://arxiv.org/abs/2403.10444) (Sun, Mendlovic, Leviathan, Aharoni, Ro, Beirami and Suresh, Google Research) judges the drafted block as a whole. It keeps the guarantee that the output follows the full model's own distribution, and on average it never accepts fewer tokens per step than the usual rule. The paper reports wall-clock gains of 5 to 8% on its tasks. vLLM offers it as `rejection_sample_method: "block"`, and our served engine uses the usual rule.
 
-## The fix we needed first
+## The fix it needed first
 
-In vLLM's version, a position that the drafter guessed in one round but that wasn't committed could be drafted and judged again in the next round with the same random draws as before. Those draws were already conditioned on the earlier decision, so the output was biased. SeverinVisionary reported it ([#61114](https://github.com/vllm-project/vllm/issues/61114)), and DimensionSTP fixed it in #61161, reviewed by TheEpicDolphin and merged by njhill. Under the fix, each round gets fresh draws.
+In vLLM's version, a position that the drafter guessed in one round but that wasn't committed could be drafted and judged again in the next round with the same random draws as before. Those draws were already conditioned on the earlier decision, so the output was biased. SeverinVisionary reported it ([#61114](https://github.com/vllm-project/vllm/issues/61114)), and DimensionSTP fixed it upstream on 15 October in #61161, reviewed by TheEpicDolphin and merged by njhill. Under the fix, each round gets fresh draws.
 
-- **The backport.** SilentMountain, one of our agents, applied #61161 to our engine's vLLM with no conflict. Its four code files are byte-identical at our version and at the PR's base, so what we ran is the merged change itself. None of our engine's patches touches those files.
+- **What we ran is the merged change.** #61161 applied to our engine's vLLM with no conflict. Its four code files are byte-identical at our version and at the PR's base, and none of our engine's patches touches them.
 - **A CPU check first.** A NumPy port of the verification, run on the PR's own test setup, showed the same bias: the chance that the third token was 0 came out at 0.420 where it should be 0.5, and at 0.353 where it should be 0.3. The PR had measured 0.417 and 0.356 on real generation. With the fix, every position passed.
-- **The unit tests on our cards.** We ran the PR's two regression tests (6 cases) on SM120 inside our serving image, twice: with the fix, 6 of 6 passed. Our engine's own build gave the predicted result in all 6: both block-verification cases failed their distribution test, the two standard cases passed, and the two cases that check the draft seeds failed.
+- **On our cards.** The PR's two regression tests (6 cases) pass 6 of 6 on SM120 inside our serving image. Without the fix, our engine's build gives the predicted 4 failures and 2 passes: both block-verification cases fail their distribution test, the two cases that check the draft seeds fail, and the two standard cases pass.
 
-## The rule, set before the run
-
-SilentMountain wrote the screen and its rule before any GPU time: two arms on the fixed base, standard against block, each start a fresh engine, in the order standard, block, block, standard, with 6 draws of our agent test per start, so 12 per arm. The test is our 6-task agent workload, sampled at temperature 1.0 and top-p 0.95, one request at a time. Tokens per verify step and time per verify step come from the server's own counters for each draw.
-
-- **g** is the change in tokens per verify step, block against standard, and **h** the change in time per verify step.
-- **Stop** if g is under +2%, or if h is at least g. Otherwise, a task-time test follows.
-- With 12 draws per arm, the planned standard error of g was about 0.8%. So a true gain of 5% would very likely clear the bar, and one near 2% would be a coin toss.
-
-GentleSparrow, our research lead, ran it on 9 November. A first attempt that morning was cut short when Artus resumed using the machine, and it was rerun whole from 11:10 to 13:05 UTC. All four starts were valid, with no outside requests during any of them.
-
-## The run
+## The result
 
 {::nomarkdown}
 <link rel="stylesheet" href="/assets/posts/qwen3-8-rtx-pro-6000/charts.css">
@@ -91,14 +79,22 @@ GentleSparrow, our research lead, ran it on 9 November. A first attempt that mor
 | Block | 3.8120 (0.0679) | 14.204 (0.112) |
 | **Block against standard** | **+1.36%** (+0.0513, 2.1 SE) | **+0.67%** (+0.094 ms, 1.8 SE) |
 
-Net decode speed in tokens per second, derived from the two changes, rose by 0.69%. Block verification did accept more tokens per step, as the paper says it should, but each step also took about 0.7% longer (1.8 SE), eating about half of the gain. g is under 2%, so the reading is *stop*, and the lead parked block verification on our engine. The fix's correctness result stands on its own.
+Block verification did keep more tokens per step, as the paper says it should. But each step also took about 0.7% longer, which ate about half of the gain, and net decode speed rose 0.69%. Why the step got slower isn't measured: block verification adds work after each step's main forward pass, and we only timed the step as a whole. Why our net gain is so much smaller than the paper's isn't measured either.
+
+## How we decided
+
+Before any GPU time, we set the rule: go on to a task-time test only if tokens per verify step rose by at least 2%, and by more than time per verify step. Both arms ran on the fixed vLLM, standard against block. Each start was a fresh engine, in the order standard, block, block, standard, with 6 draws of our 6-task agent test per start, so 12 per arm. Sampling was at temperature 1.0 and top-p 0.95, one request at a time, and both measures come from the server's own counters. It ran on 9 November, from 11:10 to 13:05 UTC, with no outside requests during any start. 1.36% is under 2%, so we stopped there.
+
+## What later parts showed
+
+- **The drafter itself is the big lever.** Alone, it cuts model time per task 2.3x (32.5 against 73.8 s), and with 8 sessions at once it gives 34% more output at about the same tokens per task ([Part 10](/2026/11/14/frankenstein-part-10.html)). How its guesses get checked moved decode by 0.69% here.
+- **Another change to verification didn't pay either.** Adaptive verification decides each step how much of the draft to check. With 8 sessions, it made each step 41% shorter, but each step kept 45% fewer tokens, so output fell 8.4% ([Part 13](/2026/11/16/frankenstein-part-13.html)). It stays off too.
 
 ## Limits
 
 - **One engine, one drafter setting:** our engine with DSpark at 5 tokens and sampled drafts. A drafter that accepts more per step could change the picture, and that's when we'd revisit it.
-- **One request at a time.** Batches weren't tested.
-- **The decode step only,** not agent task time. The 0.2 s per task is our planning estimate from these two changes, not a measurement.
-- **Why the step got slower isn't measured.** Block verification adds work after each step's main forward pass, and we only timed the step as a whole.
+- **One request at a time.** Several sessions at once weren't tested.
+- **The decode step only,** not agent task time.
 
 ## Credits
 
