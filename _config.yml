@@ -42,6 +42,8 @@ webmaster_verifications:
 analytics:
   google:
     id:
+  cloudflare:
+    id: a1ccc0071abd4b57bf109afc69c7abfa
   goatcounter:
     id: artus
 
