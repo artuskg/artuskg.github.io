@@ -182,6 +182,7 @@ The fix is one setting: record graphs for every multiple of 6 up to 48. In a tes
 
 - **The 7-request step is 24% shorter,** and the 8-request step, which never padded, is within 1.4%. 5 requests gained too (29.3 against 40.1 and 41.7 ms).
 - **Tasks per hour move less than tokens per second,** 2.3% against 6.9%. Our reading, not measured: a task's wall time also holds prefill, tool calls and waiting, which the fix doesn't touch.
+  - **Correction, 16 November:** that reading was wrong. The fix's run wrote 4.5% more tokens per task than the served runs (7,849 against 7,405 and 7,622), and that accounts for the gap: 1.069 / 1.045 = 1.023. Some of the +6.9% may come from the longer answers too; the step times above are the clean measure. [Part 13](/2026/11/16/frankenstein-part-13.html) explains.
 - **It has been served since 14 November, 13:03 UTC.**
 
 ## Tried and parked
