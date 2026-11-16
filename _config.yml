@@ -42,6 +42,8 @@ webmaster_verifications:
 analytics:
   google:
     id:
+  goatcounter:
+    id: artus
 
 pageviews:
   provider:
