@@ -7,6 +7,8 @@ tags: [deepseek, vllm, gpu, cuda, blackwell, speculative-decoding]
 
 *19 November 2026. A progress note from a running campaign, following [Part 13](/2026/11/16/frankenstein-part-13.html). Not a peer-reviewed paper. [Where We Stand](/frankenstein/) is the series overview.*
 
+*Updated 19 November 2026: the check by kind of request and the outcome of the repeat are in (Limits). The previous version is [on GitHub](https://github.com/artuskg/artuskg.github.io/blob/a1e515e/_posts/2026-11-19-frankenstein-part-14.md).*
+
 **On real coding-agent traffic, in minutes that began and ended with 8 requests running, our server wrote 8.2% more output tokens per second when the drafter guessed 3 tokens ahead instead of 5:** 544.0 against 502.9. An engine step took 38.4 ms on average instead of 48.4 ms (21% shorter), and each draft yielded 2.94 tokens instead of 3.50 (16% fewer). The cheaper step wins. 4 ahead sits in between: 43.6 ms, 3.25 tokens per draft, 526.9 tok/s (+4.8%). On 18 November we chose 3 ahead as the serving depth, and the server has run it since 15:56 UTC that day.
 
 This revises [Part 10](/2026/11/14/frankenstein-part-10.html). There, on our six recorded agent tasks, 3 ahead gave 3.5% more output per second than 5 but only 0.7% more tasks per hour, so we kept 5. This live comparison led us to choose 3.
@@ -63,10 +65,10 @@ One difference to Part 10 we can see: on our recorded tasks, drafts at 5 ahead w
 ## Limits
 
 - **Across the four blocks, 26 to 32% of eligible minutes met the 8-running test.** That's why the all-minute numbers stand beside the main read. They agree.
-- **We tried 3 and 4 ahead once each, at different hours, between two blocks at 5.** The traffic wasn't ours to control, and a change in the mix of requests between blocks could explain some or all of the difference; the repeat and the check by kind of request are there to test that. A check by the kind of request waits for the other project's own counts.
+- **We tried 3 and 4 ahead once each, at different hours, between two blocks at 5.** The traffic wasn't ours to control, and a change in the mix of requests between blocks could explain some or all of the difference. The other project's own per-minute counts of its sessions allow one check on that: keeping only minutes in which none of its sessions were repeat or hunt runs, or matching the mix of session kinds between blocks, 3 ahead stays 8.8 to 9.3% above the blocks at 5, and 4 ahead 4.8 to 5.9%. The last block at 5 keeps only about an eighth of its minutes in this check, so that end of the comparison is thin.
 - **No tasks here.** We measured server output tokens per second. We didn't measure tokens per task, completed tasks per hour or task quality on this live traffic.
 - **One session at a time wasn't part of this trial.** In Part 10, 3 ahead was about level with 5 for a single session (2% slower in model time per task, in one round).
-- **A repeat on the changed traffic:** 3 ahead again, against the stretch at 5 after the traffic changed, ran from 15:56 UTC on 18 November to the end of the trial that night. Its read is pending, and we'll report it either way.
+- **A repeat on the changed traffic:** 3 ahead again, against the stretch at 5 after the traffic changed, ran from 15:56 UTC on 18 November to the end of the trial that night. The comparison we registered can't be made: the stretch at 5 it was to be measured against lasted only 68 minutes and gave 11 qualifying minutes, all in one hour, too few for a standard error. For the record only: in minutes that began and ended with 8 requests running, 3 ahead wrote 584 tokens per second in that block, on a different mix of work, with repeat and hunt runs. That is not a repeat of the result above.
 
 ## What's next
 
