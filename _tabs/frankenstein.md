@@ -5,13 +5,13 @@ order: 0
 description: 'A living overview of our DeepSeek-V4.1-Flash server on two RTX PRO 6000 cards at home: how it compares with the same model on other setups, how much faster it got than our first version, what other models do on the same kind of cards, and whether the speed is worth it. Updated as new measurements land.'
 ---
 
-*Last updated: 21 November 2026, 14:30 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 14](#the-story-so-far); on X, the story so far is in [one thread](https://x.com/artuskg/status/2121608918669668594). Our serving code is public: [sm120-serving](https://github.com/Percivio-Ltd/sm120-serving).*
+*Last updated: 21 November 2026, 14:32 UTC. This page changes as new measurements land, and the changelog at the end lists each change. Rows still being measured are marked as such, never estimated. The day-by-day notes are [Parts 1 to 14](#the-story-so-far); on X, the story so far is in [one thread](https://x.com/artuskg/status/2121608918669668594). Our serving code is public: [sm120-serving](https://github.com/Percivio-Ltd/sm120-serving).*
 
 We run DeepSeek-V4.1-Flash-1017, an open model with 763 billion parameters, on two RTX PRO 6000 Blackwell cards in a workstation at home. As released, it doesn't fit on two cards. So our server is a Frankenstein: diffbot's 3-bit version of the model and their serving recipe, parts from other engines, and parts of our own. Before it, we tuned two Qwen3.8 models on the same kind of cards ([X thread, 28 October](https://x.com/artuskg/status/2115339268273127511)); they're [compared below](#other-models-on-the-same-kind-of-cards).
 
 ## At a glance
 
-- **One user at a time:** our 2-card server needs **34.8 s of model time per task** on our agent test (39.0 s with tools), about level with NVIDIA's full-quality FP4 version on 4 server cards (36.4 s). Measured on 5 November and not re-measured since: the changes served after it were measured at 8 sessions, and where one session was also run, it was level (the two-tier KV cache in [Part 9](/2026/11/13/frankenstein-part-9.html), and Parts [10](/2026/11/14/frankenstein-part-10.html) and [12](/2026/11/15/frankenstein-part-12.html)); [details](#the-same-model-on-other-setups).
+- **One user at a time:** our 2-card server needs **34.8 s of model time per task** on our agent test (39.0 s with tools), about level with NVIDIA's full-quality FP4 version on 4 server cards (36.4 s). Measured on 5 November and not re-measured since: the changes served after it were measured at 8 sessions, and where one session was also run, it was level (the two-tier KV cache in [Part 9](/2026/11/13/frankenstein-part-9.html), and Parts [10](/2026/11/14/frankenstein-part-10.html) and [12](/2026/11/15/frankenstein-part-12.html)); [details](#the-same-model-on-other-setups-one-user-at-a-time).
 - **Several users at once:** with a two-tier KV cache (the cards plus host RAM), served since 12 November, 8 agent sessions finish **208 graded tasks per hour, against 87 without the host-RAM half (2.4x)**, at about the same tokens per task (7,712 and 7,815). In Part 10's runs they wrote 440 output tokens per second, about 7,500 tokens per task. Since 14 November, CUDA graph sizes matched to the drafter cut the decode step with 7 requests running from 48.7 to 37.1 ms ([Part 12](/2026/11/15/frankenstein-part-12.html)). Tasks per hour rose 2.3% (215 against 210, close to the run-to-run spread), at 4.5% more tokens per task ([Part 13](/2026/11/16/frankenstein-part-13.html)). Since 15 November, three small changes read prompts 8.7% faster and return the first token 5.5% sooner, with output level. These gains were each measured on their own, in different runs and on different traffic, so they don't simply add up: the 208 is from 12 November, and the setup served now hasn't been measured as a whole on our test yet. The 208 also comes from the set of agent tasks we worked with at that time. That set has changed since, so tasks per hour from later runs won't be directly comparable with it. [Details](#throughput-several-users-at-once).
 - **About 2x faster than our first version** of 31 October: 82.6 s down to 39.0 s per task, tools included. The first figure comes from an older version of the test.
 - **The drafter,** DeepSeek's DSpark, cuts model time per task 2.3x for one user and adds 34% output at 8 sessions, both measured guessing 5 tokens ahead. Since 18 November it guesses 3 ahead: in a trial on real agent traffic, in minutes that began and ended with 8 requests running, that wrote **8.2% more output tokens per second than 5** (544.0 against 502.9), with engine steps 21% shorter ([Part 14](/2026/11/19/frankenstein-part-14.html)).
@@ -74,7 +74,9 @@ For Qwen3.8 Flash Next, nothing is measured yet:
 - **It fits on one card.** NVIDIA's 4-bit version of it, on our tuned one-card stack, took 55.5 s per task (one draw, 5 of 6 tasks passed; AWS, greedy decoding), against 49.9 s of task time on two cards together. So a 2-card box can run two copies at once, one per card.
 - **Each copy should also serve many users at once cheaply.** It uses only about 6 billion of its parameters per token, and its linear-attention layers (Gated DeltaNet) keep a fixed-size state per request. This is an expectation, not a measurement.
 
-## The same model on other setups
+## The same model on other setups, one user at a time
+
+**Every row here is one request at a time, and ours is the setup of 5 November.** By then we had tuned and measured our server for one user, with the drafter guessing 5 ahead. Since then, our changes have aimed at several users at once: the two-tier KV cache, graph sizes matched to the drafter and guessing 3 ahead (see [Throughput](#throughput-several-users-at-once)). Where those changes were also run with one session, it was level, but the setup served now hasn't been measured for this table yet.
 
 In short:
 - **Ours needs 34.8 s, and NVIDIA's full-quality version on 4 cards 36.4 s,** with its drafter set the same way as ours. The two are **about level.** Ours takes about 4.5% less model time, which is less than the spread between single draws. So our 3-bit Frankenstein gets 4-card full-quality speed from half the cards. The price is quality that hasn't been measured on public benchmarks yet.
@@ -86,7 +88,7 @@ In short:
 <div class="brrr"><section class="card" id="c-same-model-setups">
 <svg class="chart" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" width="1200" height="800" role="img" aria-label="Bar chart of model seconds per task for DeepSeek-V4.1-Flash-1017 on our 6-task agent test, one request at a time. Ours, 3-bit on 2 cards at home with its drafter: 34.8 s. NVIDIA's FP4 on 4 cards on AWS: 36.4 s with the same draft setting as ours, 42.8 s with vLLM's default, 76.1 s without a drafter. diffbot's recipe as published on our box, 40.5 s on the client's clock. On AWS's 2 cards: diffbot's recipe as published 58.9 s, a 2-bit version on the cards 150.2 s with an untuned drafter, full quality with the experts on the CPU 330.5 s with its drafter and 352.9 s without.">
 <rect width="1200" height="800" style="fill:var(--surface,#fcfcfb)"/>
-<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">One model, several setups: model time per task</text>
+<text x="60.0" y="50.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:26px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">One model, several setups, one user at a time: model time per task</text>
 <text x="60.0" y="80.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;fill:var(--ink2,#52514e);font-weight:400" text-anchor="start">DeepSeek-V4.1-Flash-1017 on our 6-task agent test · server clock unless marked · one request at a time · lower is better</text>
 <line x1="520.0" x2="520.0" y1="114" y2="654" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
 <text x="520.0" y="674.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">0</text>
@@ -99,7 +101,7 @@ In short:
 <line x1="1110.0" x2="1110.0" y1="114" y2="654" style="stroke:var(--grid,#e1e0d9);stroke-width:1"/>
 <text x="1110.0" y="674.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="middle">400 s</text>
 <text x="60.0" y="140.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:600" text-anchor="start">Ours: the 3-bit Frankenstein</text>
-<text x="60.0" y="160.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">2 cards at home · DSpark drafter · 54 draws</text>
+<text x="60.0" y="160.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:13px;fill:var(--muted,#898781);font-weight:400" text-anchor="start">2 cards at home · DSpark 5 · our one-user setup of 5 Nov · 54 draws</text>
 <g><title>Ours: the 3-bit Frankenstein: 34.8 s of model time per task</title><path d="M520 133 h47.3 a4 4 0 0 1 4 4 v16 a4 4 0 0 1 -4 4 h-47.3 Z" style="fill:var(--s2,#eb6834)"/><rect x="520" y="128" width="60.0" height="34" style="fill:transparent"/></g>
 <text x="581.3" y="150.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:650" text-anchor="start">34.8 s</text>
 <text x="60.0" y="200.0" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:16px;fill:var(--ink,#0b0b0b);font-weight:400" text-anchor="start">NVIDIA's FP4, full quality</text>
@@ -144,7 +146,7 @@ In short:
 
 | Setup | Cards | Drafter | Model s per task | Task s per task | Passed | Writes, tokens/s | Draws |
 |---|---|---|---:|---:|---:|---:|---:|
-| **Ours: the 3-bit Frankenstein** | 2 Workstation, home | DSpark 5 | **34.8** | **39.0** | 270/324 | 259.4 | 54 |
+| **Ours: the 3-bit Frankenstein** (one-user setup, 5 Nov) | 2 Workstation, home | DSpark 5 | **34.8** | **39.0** | 270/324 | 259.4 | 54 |
 | **NVIDIA's FP4, full quality** | 4 Server, AWS | DSpark 5 | **36.4** | 59.3 | 15/18 | 244.8 | 3 |
 | diffbot's recipe as published, on our box | 2 Workstation, home | DSpark 5 | 40.5 (client) | 46.7 | 17/18 | 241.4 (client) | 3 |
 | NVIDIA's FP4, vLLM's default draft setting | 4 Server, AWS | DSpark 5, greedy | 42.8 | 63.9 | 15/18 | 227.0 | 3 |
@@ -349,6 +351,7 @@ AI agents (Claude and GPT models) designed, ran and checked these measurements a
 
 ## Changelog
 
+- **21 November 2026, 14:32 UTC:** no number changed. The section on other setups is now titled "one user at a time" and opens by saying so. It also says our row is the one-user setup of 5 November, measured before the changes for several users at once. The table row and the chart say the same.
 - **21 November 2026, 14:30 UTC:** no number changed. At a glance and the Throughput section add that the tasks-per-hour figures come from the set of agent tasks we used in mid-November, which has changed since, so later runs won't be directly comparable.
 - **21 November 2026, 14:22 UTC:** no number changed. At a glance and the Throughput section now say that the tables were measured before the changes served since 14 November, and that those changes were measured one at a time, so they don't add up into the tables; the setup served now hasn't been measured as a whole yet. The Part 10 paragraph now says 5 ahead stayed until Part 14.
 
